@@ -77,7 +77,7 @@ class NoDeCarga(object):
         self.potencia = potencia
         self.potencia_eq = Fasor(real=0.0, imag=0.0, tipo=Fasor.Potencia)
         self.tensao = tensao
-        
+
         if chaves is not None:
             assert isinstance(chaves, list), 'O parâmetro chaves da classe NoDeCarga' \
                                              ' deve ser do tipo list'
@@ -88,7 +88,9 @@ class NoDeCarga(object):
         self.setor = None
 
     def __str__(self):
-        return 'No de Carga: ' + self.nome
+        return 'No de Carga: {nome}'.format(nome=self.nome)
+
+
 
 
 class Gerador(object):
@@ -155,7 +157,7 @@ class Subestacao(object):
             self.transformadores[transformador.nome] = transformador
 
     def _busca_trecho(self, alimentador, n1, n2):
-        """Função que busca trechos em um alimendador entre os nós/chaves
+        """Função que busca trechos em um alimentador entre os nós/chaves
           n1 e n2"""
         # for pecorre os nos de carga do alimentador
         for no in alimentador.nos_de_carga.keys():
@@ -209,7 +211,7 @@ class Subestacao(object):
         """ Função que varre os alimentadores pelo
         método varredura direta/inversa"""
 
-        # guarda os nós de carga na variável nos_alimentador
+        # guarda os nós de carga/geradores na variável nos_alimentador
         nos_alimentador = alimentador.nos_de_carga.values()
 
         # guarda a rnp dos nós de carga na variável rnp_alimentador
@@ -434,11 +436,10 @@ class Subestacao(object):
 
 
 
-    #def calcular_capacidade(self):
-     #       for alimentador in self.alimentadores.values():
-      #          for trechos in alimentador
-       #         if int(trecho.fluxo.mod) > trecho.capacidade:
-        #            print 'O trecho  %s está com sobrecorrente!' % trecho.nome
+    def calcular_capacidade(self):
+        for trecho in self.alimentadores.values():
+                if int(trecho.fluxo.mod) > trecho.capacidade:
+                    print 'O trecho  %s está com sobrecorrente!' % trecho.nome
 
 
 
@@ -834,6 +835,7 @@ class Chave(Aresta):
         assert estado == 1 or estado == 0, 'O parâmetro estado deve ser um inteiro de valor 1 ou 0'
         super(Chave, self).__init__(nome)
         self.estado = estado
+        
 
     def __str__(self):
         if self.n1 is not None and self.n2 is not None:

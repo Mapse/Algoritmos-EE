@@ -32,19 +32,62 @@ def tensaogerador(alimentador,gerador): # Função que percorre o sistema e iden
     return listanos
 
 
- # calculo da reatancia x11,x22,x33 (listanos está na funcao tensaogerador), nao concluido
-imp = 0
-cont = 0
-for ger in listanos:
-    aux = ger.nome
-    while cont<100:
 
-        for trechos in sub_1_al_1.trechos.values():
+#Cálculo da diagonal principal
+# Farei uma função para o cálculo
 
-            if trechos.n2.nome == aux:
-                aux = trechos.n1.nome
-                imp += trechos.comprimento * trechos.condutor.xp
-                sub_1_al_1.trechos.values().remove(trechos)
+reat = 0  # define a variavel como 0 para depois atribuir as reatancias de cada trecho
+trechos = sub_1_al_1.trechos.values()  # armazena os trechos do sistema
+caminho = sub_1_al_1.arvore_nos_de_carga.caminho_no_para_raiz('B1')[1]  # armazena o caminho nó para raiz (usando B1 como exemplo)
+for no in caminho:
+    for trecho in trechos:  # faz for nos trechos do alimentador.
+        if str(no) == trecho.n1.nome:  # se o nó atual do caminho for igual ao n1 do trecho faz:
 
-            cont += 1
-imp = imp/100
+            if trecho.n1.nome not in caminho:  # se o nome do n1 do trecho não está no caminho
+                if trecho.n2.nome in caminho:  # verifica se o n2 está e portanto soma a reatância
+                    reat += trecho.comprimento * trecho.condutor.xp
+                    print trecho  # dá o print do trecho para verificação
+            elif trecho.n2.nome not in caminho:  # ou se o nome do n2 do trecho não está no caminho
+                if trecho.n1.nome in caminho:  # verifica se o nome do n1 está no caminho
+                    aux = 0  # variável auxiliar
+                    if isinstance(trecho.n2, Chave):  # (PROBLEMA) se o n2 do trecho instancia a classe Chave
+                        aux = trecho.n2  # a variável recebe o n2
+                        if aux.vizinhojus not in caminho:  # se o vizinhojus não estiver no caminho
+                            reat += 0  # não soma a reatância
+                        else:  # se o vizinhomon estiver no caminho:
+                                reat += trecho.comprimento * trecho.condutor.xp #soma a reatancia
+                                print trecho
+                    elif trecho.n2.nome not in caminho:  # por outro lado, se o n2 do trecho não está no caminho
+                        reat += 0  # atribui zero para a reatância
+                    else:  # pelo contrário, soma a reatancia
+                        reat += trecho.comprimento * trecho.condutor.xp
+                        print trecho
+            else:  # se os dois nós considerados, n1 e n2 estiverem no caminho, soma a reatancia.
+                reat += trecho.comprimento * trecho.condutor.xp
+                print trecho
+                trechos.remove(trecho)  # precisa-se remover o trecho, pois ao considerar o próximo nó da árvore
+# o mesmo trecho será visitado e a reatância seria adicionada novamente.
+        elif str(no) == trecho.n2.nome:  # ou se o nó atual do caminho é igual ao n2 do trecho e realiza
+                                        # praticamente a mesma coisa de anteriormente
+            if trecho.n1.nome not in caminho:
+                if trecho.n2.nome in caminho:
+                    reat += trecho.comprimento * trecho.condutor.xp
+                    print trecho
+            elif trecho.n2.nome not in caminho:
+                if trecho.n1.nome in caminho:
+                    if isinstance(trecho.n2, Chave):
+                        reat += 0
+                    elif trecho.n2.nome not in caminho:
+                        reat += 0
+                    else:
+                        reat += trecho.comprimento * trecho.condutor.xp
+                        print trecho
+            else:
+                reat += trecho.comprimento * trecho.condutor.xp
+                print trecho
+                trechos.remove(trecho)
+print reat
+
+
+    def xij(alimentador):
+
