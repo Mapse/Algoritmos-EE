@@ -33,61 +33,73 @@ def tensaogerador(alimentador,gerador): # Função que percorre o sistema e iden
 
 
 
-#Cálculo da diagonal principal
-# Farei uma função para o cálculo
+def xii(alimentador, no_, Gerador):
+    trechos = alimentador.trechos.values()
+    caminho = alimentador.arvore_nos_de_carga.caminho_no_para_raiz(no_)[1]
+    caminho = list(caminho)
+    caminho_2 = list(caminho)
+    tr = list()
 
-reat = 0  # define a variavel como 0 para depois atribuir as reatancias de cada trecho
-trechos = sub_1_al_1.trechos.values()  # armazena os trechos do sistema
-caminho = sub_1_al_1.arvore_nos_de_carga.caminho_no_para_raiz('B1')[1]  # armazena o caminho nó para raiz (usando B1 como exemplo)
-for no in caminho:
-    for trecho in trechos:  # faz for nos trechos do alimentador.
-        if str(no) == trecho.n1.nome:  # se o nó atual do caminho for igual ao n1 do trecho faz:
+    for no in caminho:
+        for trecho in trechos:
+            if trecho.n1.nome == no:
+                if type(trecho.n2) == Gerador:
+                    if trecho.n2.nome in caminho_2 and trecho.n2.nome != no:
+                        tr.append(trecho.nome)
+                else:
+                    no_1 = alimentador.nos_de_carga[no]
 
-            if trecho.n1.nome not in caminho:  # se o nome do n1 do trecho não está no caminho
-                if trecho.n2.nome in caminho:  # verifica se o n2 está e portanto soma a reatância
-                    reat += trecho.comprimento * trecho.condutor.xp
-                    print trecho  # dá o print do trecho para verificação
-            elif trecho.n2.nome not in caminho:  # ou se o nome do n2 do trecho não está no caminho
-                if trecho.n1.nome in caminho:  # verifica se o nome do n1 está no caminho
-                    aux = 0  # variável auxiliar
-                    if isinstance(trecho.n2, Chave):  # (PROBLEMA) se o n2 do trecho instancia a classe Chave
-                        aux = trecho.n2  # a variável recebe o n2
-                        if aux.vizinhojus not in caminho:  # se o vizinhojus não estiver no caminho
-                            reat += 0  # não soma a reatância
-                        else:  # se o vizinhomon estiver no caminho:
-                                reat += trecho.comprimento * trecho.condutor.xp #soma a reatancia
-                                print trecho
-                    elif trecho.n2.nome not in caminho:  # por outro lado, se o n2 do trecho não está no caminho
-                        reat += 0  # atribui zero para a reatância
-                    else:  # pelo contrário, soma a reatancia
-                        reat += trecho.comprimento * trecho.condutor.xp
-                        print trecho
-            else:  # se os dois nós considerados, n1 e n2 estiverem no caminho, soma a reatancia.
-                reat += trecho.comprimento * trecho.condutor.xp
-                print trecho
-                trechos.remove(trecho)  # precisa-se remover o trecho, pois ao considerar o próximo nó da árvore
-# o mesmo trecho será visitado e a reatância seria adicionada novamente.
-        elif str(no) == trecho.n2.nome:  # ou se o nó atual do caminho é igual ao n2 do trecho e realiza
-                                        # praticamente a mesma coisa de anteriormente
-            if trecho.n1.nome not in caminho:
-                if trecho.n2.nome in caminho:
-                    reat += trecho.comprimento * trecho.condutor.xp
-                    print trecho
-            elif trecho.n2.nome not in caminho:
-                if trecho.n1.nome in caminho:
-                    if isinstance(trecho.n2, Chave):
-                        reat += 0
-                    elif trecho.n2.nome not in caminho:
-                        reat += 0
+                    try:
+                        no_2 = alimentador.nos_de_carga[caminho_2[1]]
+                    except IndexError:
+                        continue
+
+                    set_1 = set(no_1.chaves)
+                    set_2 = set(no_2.chaves)
+
+                    if set_1.intersection(set_2) != set():
+                        chave = set_1.intersection(set_2).pop()
                     else:
-                        reat += trecho.comprimento * trecho.condutor.xp
-                        print trecho
-            else:
-                reat += trecho.comprimento * trecho.condutor.xp
-                print trecho
-                trechos.remove(trecho)
-print reat
+                        continue
 
+                    if chave != trecho.n2.nome:
+                        continue
 
-    def xij(alimentador):
+                    for trech in trechos:
+                        if trech.n1.nome == chave:
+                            tr.append(trech.nome)
+                        elif trech.n2.nome == chave:
+                            tr.append(trech.nome)
 
+            elif trecho.n2.nome == no:
+                if type(trecho.n1) == Gerador:
+                    if trecho.n1.nome in caminho and trecho.n1.nome != no:
+                        tr.append(trecho.nome)
+                else:
+                    no_1 = alimentador.nos_de_carga[no]
+
+                    try:
+                        no_2 = alimentador.nos_de_carga[caminho_2[1]]
+                    except IndexError:
+                        continue
+
+                    no_2 = alimentador.nos_de_carga[caminho_2[1]]
+                    set_1 = set(no_1.chaves)
+                    set_2 = set(no_2.chaves)
+
+                    if set_1.intersection(set_2) != set():
+                        chave = set_1.intersection(set_2).pop()
+                    else:
+                        continue
+
+                    if chave != trecho.n1.nome:
+                        continue
+
+                    for trech in trechos:
+                        if trech.n1.nome == chave:
+                            tr.append(trech.nome)
+                        elif trech.n2.nome == chave:
+                            tr.append(trech.nome)
+
+        caminho_2.remove(no)
+    return tr
