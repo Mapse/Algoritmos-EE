@@ -452,12 +452,6 @@ class Subestacao(object):
                 print 'Max. diferença de tensões: {conv}'.format(conv=converg)
 
 
-def calcular_capacidade(self, alimentador):
-    for trecho in self.alimentadores.trecho.values():
-        if int(trecho.fluxo.mod) > trecho.capacidade:
-            print 'O trecho  %s está com sobrecorrente!' % trecho.nome
-
-
 class Trecho(Aresta):
     def __init__(self,
                  nome,
