@@ -8,6 +8,7 @@ def calcular_capacidade(alimentador):
         if int(trecho.fluxo.mod) > trecho.capacidade:
             print 'O trecho  %s está com sobrecorrente!' % trecho.nome
 
+
 def atribuir_potencia(alimentador, gerador):
     """ Funcao que atribui potencia negativa em geradores para o calculo do fluxo de potencia  """
     for nos in alimentador.nos_de_carga.values():  # percorre os nos/geradores do sistema
@@ -15,37 +16,41 @@ def atribuir_potencia(alimentador, gerador):
             nos.potencia.real = (-1) * nos.potencia.real
             nos.potencia.imag = (-1) * nos.potencia.imag
 
-def tensaogerador(alimentador,gerador): # Função que percorre o sistema e identifica quais geradores ficaram com tensao fora dos limites
+
+def tensaogerador(alimentador, gerador):  # Função que percorre o sistema e identifica quais geradores ficaram com tensao fora dos limites
 
     count = 1
     diftensao = list()
     listanos = list()
-    for nos in alimentador.nos_de_carga.values(): #percorre nos do sistema
+    for nos in alimentador.nos_de_carga.values():  #percorre nos do sistema
         if isinstance(nos, gerador):
-            if nos.modelofluxo == 'PV': # trata apenas geradores modelados como PV
+            if nos.modelofluxo == 'PV':  # trata apenas geradores modelados como PV
 
-                deltaV = float(nos.tensao.mod) - nos.tensaogerador #calcula a diferença entre a tensão calculada com o fluxo de carga e a tensao do gerador
-                diftensao.append(deltaV) # guarda as diferenças de tensões dos geradores não convergidos na lista
-                listanos.append(nos) # guarda o objeto gerador
-                count += 1 # incremento que define a quantidade geradores não convergidos
+                deltav = float(nos.tensao.mod) - nos.tensaogerador  #calcula a diferença entre a tensão calculada com o fluxo de carga e a tensao do gerador
+                diftensao.append(deltav)   # guarda as diferenças de tensões dos geradores não convergidos na lista
+                listanos.append(nos)  # guarda o objeto gerador
+                count += 1  # incremento que define a quantidade geradores não convergidos
                 print diftensao
     return listanos
 
 
+def xii(alimentador, no_, nodecarga):
+    trechos = alimentador.trechos.values()  # variável que guarda os techos do alimentador
+    caminho = alimentador.arvore_nos_de_carga.caminho_no_para_raiz(no_)[1]  # variável que guarda o caminho do nó até o nó raiz
+    caminho = list(caminho)  # faz uma lista do array caminho
+    caminho_2 = list(caminho)  # faz uma lista em outra variável auxiliar
+    tr = []  # lista que servirá para guarda os trechos
+    reat = 0
 
-def xii(alimentador, no_, Gerador):
-    trechos = alimentador.trechos.values()
-    caminho = alimentador.arvore_nos_de_carga.caminho_no_para_raiz(no_)[1]
-    caminho = list(caminho)
-    caminho_2 = list(caminho)
-    tr = list()
+    for no in caminho:  # for que percorre o caminho
+        for trecho in trechos:  # for que percorre os trechos
 
-    for no in caminho:
-        for trecho in trechos:
-            if trecho.n1.nome == no:
-                if type(trecho.n2) == Gerador:
+            if trecho.n1.nome == no:  # se o n1 do trecho for igual ao nó atual
+
+                if type(trecho.n2) == nodecarga:  # se o tipo for gerador verifica se o n2 ta no caminho e se o n2 nao é o próprio nó
                     if trecho.n2.nome in caminho_2 and trecho.n2.nome != no:
-                        tr.append(trecho.nome)
+                        reat += (trecho.comprimento * trecho.condutor.xp)
+                        tr.append(trecho)
                 else:
                     no_1 = alimentador.nos_de_carga[no]
 
@@ -67,14 +72,17 @@ def xii(alimentador, no_, Gerador):
 
                     for trech in trechos:
                         if trech.n1.nome == chave:
-                            tr.append(trech.nome)
+                            tr.append(trech)
+                            reat += (trech.comprimento * trech.condutor.xp)
                         elif trech.n2.nome == chave:
-                            tr.append(trech.nome)
+                            reat += (trech.comprimento * trech.condutor.xp)
+                            tr.append(trech)
 
             elif trecho.n2.nome == no:
-                if type(trecho.n1) == Gerador:
+                if type(trecho.n1) == nodecarga:
                     if trecho.n1.nome in caminho and trecho.n1.nome != no:
-                        tr.append(trecho.nome)
+                        tr.append(trecho)
+                        reat += (trecho.comprimento * trecho.condutor.xp)
                 else:
                     no_1 = alimentador.nos_de_carga[no]
 
@@ -97,9 +105,11 @@ def xii(alimentador, no_, Gerador):
 
                     for trech in trechos:
                         if trech.n1.nome == chave:
-                            tr.append(trech.nome)
+                            tr.append(trech)
+                            reat += (trech.comprimento * trech.condutor.xp)
                         elif trech.n2.nome == chave:
-                            tr.append(trech.nome)
-
+                            tr.append(trech)
+                            reat += (trech.comprimento * trech.condutor.xp)
         caminho_2.remove(no)
-    return tr
+
+    return tr, reat / 1e3

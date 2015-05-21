@@ -325,13 +325,29 @@ class Arvore(object):
                 a1 = self.caminho_no_para_raiz(n2, sentido=1)
                 a2 = self.caminho_no_para_raiz(n1, sentido=0)
 
-                no_comum = max([i for i in a2[1, :] if i in a1[1, :]])
-                indice_no_comum = where(a1[1, :] == no_comum)[0][0]
+                # no_comum = max([i for i in a2[1, :] if i in a1[1, :]])
+                # indice_no_comum = where(a1[1, :] == no_comum)[0][0]
+                no_comum = list()
+                indice_no_comum = list()
+                for i in a2.transpose():
+                    if i[1] in a1[1:]:
+                        indice_no_comum.append(i[0])
+                        no_comum.append(i[1])
+                indice_no_comum = int(max(indice_no_comum))
+                no_comum = no_comum[0]
 
-                a1 = a1[:, :indice_no_comum + 1]
+                a1 = a1[:, :indice_no_comum + 2]
 
-                indice_no_comum = where(a2[1, :] == no_comum)[0][0]
+                # indice_no_comum = where(a2[1, :] == no_comum)[0][0]
 
+                no_comum = list()
+                indice_no_comum = list()
+                for i in a1.transpose():
+                    if i[1] in a2[1:]:
+                        indice_no_comum.append(i[0])
+                        no_comum.append(i[1])
+                indice_no_comum = int(max(indice_no_comum))
+                no_comum = no_comum[0]
                 a2 = a2[:, indice_no_comum + 1:]
                 return concatenate((a1, a2), axis=1)
 

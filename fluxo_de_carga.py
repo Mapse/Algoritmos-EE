@@ -91,8 +91,6 @@ class NoDeCarga(object):
         return 'No de Carga: {nome}'.format(nome=self.nome)
 
 
-
-
 class Gerador(object):
     def __init__(self,
                  nome,
@@ -136,6 +134,7 @@ class Gerador(object):
 
     def __repr__(self):
         return 'Gerador: {nome}'.format(nome=self.nome)
+
 
 class Subestacao(object):
     def __init__(self, nome, alimentadores, transformadores):
@@ -206,6 +205,24 @@ class Subestacao(object):
                 no.tensao = Fasor(real=tensao.real,
                                   imag=tensao.imag,
                                   tipo=Fasor.Tensao)
+
+    def calcular_ampacidade(self, alimentador):
+        for alimentador in self.alimentadores.values():
+            for trecho in alimentador.trechos.values():
+                if int(trecho.fluxo.mod) > trecho.condutor.ampacidade:
+                    print 'O trecho  %s está com sobrecorrente!' % trecho.nome
+                    a = int(trecho.fluxo.mod)
+                    b = trecho.condutor.ampacidade
+                    c = a / b
+                    c = c * 100
+                    print 'seu carregamento é %f por cento:' % c
+                else:
+                    print 'O trecho %s está com o seu carregamento dentro dos limites ' % trecho.nome
+                    a = int(trecho.fluxo.mod)
+                    b = trecho.condutor.ampacidade
+                    c = a / b
+                    c = c * 100
+                    print 'seu carregamento é %f por cento :' % c
 
     def _varrer_alimentador(self, alimentador):
         """ Função que varre os alimentadores pelo
@@ -283,12 +300,12 @@ class Subestacao(object):
                 # se não houverem o nó de carga analisado
                 # é o último do ramo.
                 if vizinhos_jusante == []:
-                    no.potencia_eq.real += no.potencia.real
-                    no.potencia_eq.imag += no.potencia.imag
+                    no.potencia_eq.real += no.potencia.real / 3.0
+                    no.potencia_eq.imag += no.potencia.imag / 3.0
                 else:
                     # soma a potencia da carga associada ao nó atual
-                    no.potencia_eq.real += no.potencia.real
-                    no.potencia_eq.imag += no.potencia.imag
+                    no.potencia_eq.real += no.potencia.real / 3.0
+                    no.potencia_eq.imag += no.potencia.imag / 3.0
 
                     # acrescenta à potência do nó atual
                     # as potências dos nós a jusante
@@ -399,7 +416,7 @@ class Subestacao(object):
 
     def calcular_fluxo_de_carga(self):
 
-        f1 = Fasor(mod=13.8e3, ang=0.0, tipo=Fasor.Tensao)
+        f1 = Fasor(mod=13.8e3 / np.sqrt(3) , ang=0.0, tipo=Fasor.Tensao)
         self._atribuir_tensao_a_subestacao(f1)
 
         for alimentador in self.alimentadores.values():
@@ -435,14 +452,10 @@ class Subestacao(object):
                 print 'Max. diferença de tensões: {conv}'.format(conv=converg)
 
 
-
-    def calcular_capacidade(self):
-        for trecho in self.alimentadores.values():
-                if int(trecho.fluxo.mod) > trecho.capacidade:
-                    print 'O trecho  %s está com sobrecorrente!' % trecho.nome
-
-
-
+def calcular_capacidade(self, alimentador):
+    for trecho in self.alimentadores.trecho.values():
+        if int(trecho.fluxo.mod) > trecho.capacidade:
+            print 'O trecho  %s está com sobrecorrente!' % trecho.nome
 
 
 class Trecho(Aresta):
@@ -478,8 +491,8 @@ class Trecho(Aresta):
             self.fluxo = fluxo
 
     def calcula_impedancia(self):
-        return (self.comprimento * self.condutor.rp / 1e3,
-                self.comprimento * self.condutor.xp / 1e3)
+        return (self.comprimento * self.condutor.rp,
+                self.comprimento * self.condutor.xp)
 
     def __repr__(self):
         return 'Trecho: %s' % self.nome
@@ -830,18 +843,20 @@ class Alimentador(Arvore):
         self.gerar_arvore_nos_de_carga()
 
 
+
+
 class Chave(Aresta):
     def __init__(self, nome, estado=1):
         assert estado == 1 or estado == 0, 'O parâmetro estado deve ser um inteiro de valor 1 ou 0'
         super(Chave, self).__init__(nome)
         self.estado = estado
-        
 
-    def __str__(self):
-        if self.n1 is not None and self.n2 is not None:
-            return 'Chave: %s - n1: %s, n2: %s' % (self.nome, self.n1.nome, self.n2.nome)
-        else:
-            return 'Chave: %s' % self.nome
+
+def __str__(self):
+    if self.n1 is not None and self.n2 is not None:
+        return 'Chave: %s - n1: %s, n2: %s' % (self.nome, self.n1.nome, self.n2.nome)
+    else:
+        return 'Chave: %s' % self.nome
 
 
 class Transformador(object):
@@ -952,7 +967,7 @@ if __name__ == '__main__':
                  qmin=30e3,
                  qmax=100e3,
                  tensaogerador=13.700)
-   
+
     b2 = NoDeCarga(nome='B2',
                    tensao=Fasor(real=0.0, imag=0.0, tipo=Fasor.Tensao),
                    vizinhos=['B1', 'B3', 'E2'],
@@ -983,7 +998,7 @@ if __name__ == '__main__':
                    vizinhos=['C1', 'E3', 'B3'],
                    potencia=Fasor(real=100.0e3, imag=80.0e3, tipo=Fasor.Potencia),
                    chaves=['5', '8'])
-    
+
     # Nos de carga do alimentador S2_AL1
     s2 = NoDeCarga(nome='S2',
                    tensao=Fasor(real=0.0, imag=0.0, tipo=Fasor.Tensao),
