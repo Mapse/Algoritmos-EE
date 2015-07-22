@@ -1,8 +1,9 @@
 # coding=utf-8
+from terminaltables import AsciiTable
 import numpy as np
 from random import randint
 from rnp import Arvore, Aresta
-from util import Fasor
+from util import Fasor, Base
 
 
 class Setor(Arvore):
@@ -63,7 +64,6 @@ class Setor(Arvore):
 
 class NoDeCarga(object):
     def __init__(self,
-                 tipo,
                  nome,
                  vizinhos,
                  potencia=Fasor(real=0.0, imag=0.0, tipo=Fasor.Potencia),
@@ -73,7 +73,7 @@ class NoDeCarga(object):
                                       ' deve ser do tipo string'
         assert isinstance(vizinhos, list), 'O parâmetro vizinhos da classe' \
                                            ' Barra deve ser do tipo string'
-        self.tipo = tipo
+
         self.nome = nome
         self.vizinhos = vizinhos
         self.potencia = potencia
@@ -92,8 +92,53 @@ class NoDeCarga(object):
         return 'No de Carga: ' + self.nome
 
 
+class Gerador(object):
+    def __init__(self,
+                 nome,
+                 vizinhos,
+                 tipogerador,
+                 maquina,
+                 modelofluxo,
+                 qmin,
+                 qmax,
+                 tensaogerador,
+                 potencia=Fasor(real=0.0, imag=0.0, tipo=Fasor.Potencia),
+                 tensao=Fasor(real=0.0, imag=0.0, tipo=Fasor.Tensao),
+                 chaves=None):
+
+        self.nome = nome
+        self.vizinhos = vizinhos
+        self.potencia = potencia
+        self.potencia_eq = Fasor(real=0.0, imag=0.0, tipo=Fasor.Potencia)
+        self.tensao = tensao
+        self.tipogerador = tipogerador
+        self.maquina = maquina
+        self.modelofluxo = modelofluxo
+        self.qmin = qmin
+        self.qmax = qmax
+        self.tensaogerador = tensaogerador
+
+        assert isinstance(tipogerador, str), 'O parâmetro tipogerador deve' \
+                                             'ser do tipo str'
+        assert isinstance(maquina, str), 'O parâmetro maquina deve' \
+                                         'ser do tipo str'
+        assert isinstance(modelofluxo, str), 'O parâmetro modelofluxo deve' \
+                                             'ser do tipo str'
+        if chaves is not None:
+            assert isinstance(chaves, list), 'O parâmetro chaves da classe NoDeCarga' \
+                                             ' deve ser do tipo list'
+            self.chaves = chaves
+        else:
+            self.chaves = list()
+
+        self.setor = None
+
+    def __repr__(self):
+        return 'Gerador: {nome}'.format(nome=self.nome)
+
+
 class Subestacao(object):
-    def __init__(self, nome, alimentadores, transformadores):
+    def __init__(self, nome, alimentadores, transformadores, impedancia_positiva=0, impedancia_zero=0):
         assert isinstance(nome, str), 'O parâmetro nome da classe Subestacao ' \
                                       'deve ser do tipo str'
         assert isinstance(alimentadores, list), 'O parâmetro alimentadores da classe ' \
@@ -110,6 +155,293 @@ class Subestacao(object):
         self.transformadores = dict()
         for transformador in transformadores:
             self.transformadores[transformador.nome] = transformador
+
+        for transformador in transformadores:
+            self.base_sub = Base(transformador.tensao_secundario.mod, transformador.potencia.mod)
+            break
+
+        for alimentador in alimentadores:  # varre os alimentadores para criar as tensões de base e calcula as impedâncias equivalentes
+            for trecho in alimentador.trechos.values():
+                trecho.base = self.base_sub #DÚVIDA AQUI
+                trecho.impedancia_equivalente_positiva = trecho.impedancia_positiva/trecho.base.impedancia
+                trecho.impedancia_equivalente_zero = trecho.impedancia_zero / trecho.base.impedancia
+
+        self.impedancia_positiva = impedancia_positiva # precisa definir da subestação
+        self.impedancia_zero = impedancia_zero
+        self.impedancia_equivalente_positiva = impedancia_positiva
+        self.impedancia_equivalente_zero = impedancia_zero
+
+    ############################
+    # CALCULOS DE CURTO-CIRCUITO
+    ############################
+
+    def calculacurto(self, tipo):
+        """Função que calcula o valor da corrente de curto circuito"""
+
+        #inicialmente calcula a impedancia equivalente para cada trecho
+        self.calculaimpedanciaeq()
+
+        if tipo == 'trifasico':
+            self.curto_trifasico = [['Trecho 3fasico', 'Curto pu', 'Curto A']]
+
+            #para cada trecho alimentado pela subestação calcula o curto
+            for alimentador_atual, r in self.alimentadores.iteritems():
+                for i in self.alimentadores[alimentador_atual].trechos.values():
+                    curto = i.calcula_curto_trifasico()
+                    self.curto_trifasico.append([i.nome,str(curto.pu),str(curto.mod)])
+            table = AsciiTable(self.curto_trifasico)
+            print table.table
+
+        elif tipo == 'monofasico':
+            self.curto_monofasico = [['Trecho 1fasico', 'Curto pu', 'Curto A']]
+
+            #para cada trecho alimentado pela subestação calcula o curto
+            for alimentador_atual, r in self.alimentadores.iteritems():
+                for i in self.alimentadores[alimentador_atual].trechos.values():
+                    curto = i.calcula_curto_monofasico()
+                    self.curto_monofasico.append([i.nome,str(curto.pu),str(curto.mod)])
+            table = AsciiTable(self.curto_monofasico)
+            print table.table
+
+        elif tipo == 'bifasico':
+            self.curto_bifasico = [['Trecho 2fasico', 'Curto pu', 'Curto A']]
+
+            #para cada trecho alimentado pela subestação calcula o curto
+            for alimentador_atual, r in self.alimentadores.iteritems():
+                for i in self.alimentadores[alimentador_atual].trechos.values():
+                    curto = i.calcula_curto_bifasico()
+                    self.curto_bifasico.append([i.nome,str(curto.pu),str(curto.mod)])
+            table = AsciiTable(self.curto_bifasico)
+            print table.table
+
+        elif tipo == 'monofasico_minimo':
+            self.curto_monofasico_minimo = [['Trecho 1fasico min', 'Curto pu', 'Curto A']]
+
+            #para cada trecho alimentado pela subestação calcula o curto
+            for alimentador_atual, r in self.alimentadores.iteritems():
+                for i in self.alimentadores[alimentador_atual].trechos.values():
+                    curto = i.calcula_curto_monofasico_minimo()
+                    self.curto_monofasico_minimo.append([i.nome,str(curto.pu),str(curto.mod)])
+            table = AsciiTable(self.curto_monofasico_minimo)
+            print table.table
+
+    def calculaimpedanciaeq(self):
+        """Função que calcula a impedancia equivalente da subestação até o final do cada trecho"""
+
+        #for coloca os valores de impedância em pu
+        for alimentador in self.alimentadores.values():
+            for trecho in alimentador.trechos.values():
+                trecho.base = self.base_sub
+                trecho.impedancia_equivalente_positiva = trecho.impedancia_positiva/ trecho.base.impedancia
+                trecho.impedancia_equivalente_zero = trecho.impedancia_zero / trecho.base.impedancia
+
+        # guarda os trechos em que já foram calculados a impedância equivalente
+        trechosvisitados = []
+
+        #procura o nó inicial(raiz) do alimentador
+        for alimentador_atual, r in self.alimentadores.iteritems():
+            for i in self.alimentadores[alimentador_atual].trechos.values(): # por que nao i in self.r.trechos.values():??
+                for j in self.alimentadores[alimentador_atual].setores[r.arvore_nos_de_carga.raiz].nos_de_carga.keys(): #DUVIDA AQUI
+                    #nó a partir do qual será procurado trechos conectados a ele
+                    prox_no = self.alimentadores[alimentador_atual].setores[r.arvore_nos_de_carga.raiz].nos_de_carga[j]
+                    #último trecho que foi calculado a impedância equivalente
+                    trechoatual = self #DÚVIDA AQUI
+                    break
+                break
+            break
+            # ALIMENTADOR ATUAL?
+        self._calculaimpedanciaeq(trechoatual, prox_no, alimentador_atual, trechosvisitados)
+#SE TRECHOS VISITADOS AINDA É VAZIO COMO FUNCIONARÁ O IF?
+    def _calculaimpedanciaeq(self, trecho_anterior, no_atual, alimentador_atual, trechosvisitados):
+
+        #procura trechos conectados ao no_atual (prox_no da execução anterior)
+        for i in self.alimentadores[alimentador_atual].trechos.values():
+            if (i not in trechosvisitados and i.n1 == no_atual) or (i not in trechosvisitados and i.n2  == no_atual):
+
+                #verifica se a ligação é feita por meio de chave, verificando-se o estado da chave
+                if type(no_atual) == Chave:
+                    if no_atual.estado == 0:
+                        continue
+                    else:
+                        pass
+                else:
+                    pass
+
+                # calcula impedância equivalente do trecho
+                i.impedancia_equivalente_positiva = i.impedancia_equivalente_positiva + trecho_anterior.impedancia_equivalente_positiva
+                i.impedancia_equivalente_zero = i.impedancia_equivalente_zero + trecho_anterior.impedancia_equivalente_zero
+                trechosvisitados.append(i)
+                trecho_atual = i
+
+                # procura o prox_no para calcular a sua impedancia equivalente
+                if no_atual == i.n1:
+                    prox_no = i.n2
+                else:
+                    prox_no = i.n1
+
+                self._calculaimpedanciaeq(trecho_atual, prox_no, alimentador_atual,trechosvisitados)
+            else:
+                pass
+        return
+
+    def calculacurtogerador(self, alimentador, gerador, ponto_de_curto):
+        """Função que calcula o valor do curto circuito com a contribuição de um gerador"""
+
+        #for coloca os valores de impedância em pu
+        for al in self.alimentadores.values():
+            for trecho in al.trechos.values():
+                trecho.base = self.base_sub
+                trecho.base = self.base_sub
+                trecho.impedancia_equivalente_positiva = trecho.impedancia_positiva/ trecho.base.impedancia
+                trecho.impedancia_equivalente_zero = trecho.impedancia_zero / trecho.base.impedancia
+        #guarda o caminho subestaçã-gerador e subestação-ponto_de_curto
+        c1 = self.alimentadores[alimentador].arvore_nos_de_carga.caminho_no_para_no(self.alimentadores[alimentador].raiz,ponto_de_curto,0)
+        c2 = self.alimentadores[alimentador].arvore_nos_de_carga.caminho_no_para_no(self.alimentadores[alimentador].raiz,gerador,0)
+
+        #procura o nó de maior profundidade (ponto de encontro) que ainda é comum aos dois caminhos
+        for i in range(len(c1[0])):
+            for j in range(len(c2[0])):
+                if c1[1][i] == c2[1][j]:
+                    ponto_de_encontro = c1[1][i]
+                    profundidadec1 = i
+                    profundidadec2 = j
+        print 'ponto de encontro',ponto_de_encontro
+
+        impedanciasub_positiva = 0
+        impedanciasub_zero = 0
+        inicial = self.alimentadores[alimentador].raiz
+        trechoscomuns = []
+
+        #calcula a impedancia do caminho entre subestação e o ponto de encontro
+        for i in range(profundidadec1):
+            z1 = self._busca_trecho(self.alimentadores[alimentador],inicial,c1[1][i+1])
+            if type(z1) == list:
+                for j in z1:
+                    trechoscomuns.append(j)
+                    impedanciasub_positiva = impedanciasub_positiva + j.impedancia_equivalente_positiva
+                    impedanciasub_zero = impedanciasub_zero + j.impedancia_equivalente_zero
+            else:
+                    trechoscomuns.append(z1)
+                    impedanciasub_positiva = impedanciasub_positiva + z1.impedancia_equivalente_positiva
+                    impedanciasub_zero = impedanciasub_zero + z1.impedancia_equivalente_zero
+
+            inicial = c1[1][i+1]
+        '''print 'fim da impedancia sub-encontro'
+        for k in trechoscomuns:
+            print k.nome, '- zp', k.impedancia_equivalente_positiva
+        print 'impedancia_positiva',impedanciasub_positiva
+        for k in trechoscomuns:
+            print k.nome, '- z0', k.impedancia_equivalente_zero
+        print 'impedancia_zero',impedanciasub_zero
+        print '\n \n' '''
+
+        impedanciacomum_positiva = 0
+        impedanciacomum_zero = 0
+        inicial = c1[1][profundidadec1]
+        trechoscurto = []
+
+        #calcula a impedancia do caminho o ponto de encontro e o ponto de curto
+        for i in range(profundidadec1+1,len(c1[0])):
+            z2 = self._busca_trecho(self.alimentadores[alimentador],inicial,c1[1][i])
+            if type(z2) == list:
+                for j in z2:
+                    trechoscurto.append(j)
+                    impedanciacomum_positiva = impedanciacomum_positiva + j.impedancia_equivalente_positiva
+                    impedanciacomum_zero = impedanciacomum_zero + j.impedancia_equivalente_zero
+            else:
+                trechoscurto.append(z2)
+                impedanciacomum_positiva = impedanciacomum_positiva + z2.impedancia_equivalente_positiva
+                impedanciacomum_zero = impedanciacomum_zero + z2.impedancia_equivalente_zero
+
+            inicial = c1[1][i]
+        '''print 'fim da impedancia encontro-curto'
+        for k in trechoscurto:
+            print k.nome, '- zp', k.impedancia_equivalente_positiva
+        print 'impedancia_positiva',impedanciacomum_positiva
+        for k in trechoscurto:
+            print k.nome, '- z0', k.impedancia_equivalente_zero
+        print 'impedancia_zero',impedanciacomum_zero
+        print '\n \n' '''
+
+        impedanciagerador_positiva = 0
+        impedanciagerador_zero = 0
+        inicial = c2[1][profundidadec1]
+        trechosgerador = []
+
+        #calcula a impedancia do caminho o ponto de encontro e o gerador
+        for i in range(profundidadec1+1,len(c2[0])):
+            z3 = self._busca_trecho(self.alimentadores[alimentador],inicial,c2[1][i])
+            if type(z3) == list:
+                for j in z3:
+                    trechosgerador.append(j)
+                    impedanciagerador_positiva = impedanciagerador_positiva + j.impedancia_equivalente_positiva
+                    impedanciagerador_zero = impedanciagerador_zero + j.impedancia_equivalente_zero
+            else:
+                trechosgerador.append(z3)
+                impedanciagerador_positiva = impedanciagerador_positiva + z3.impedancia_equivalente_positiva
+                impedanciagerador_zero = impedanciagerador_zero + z3.impedancia_equivalente_zero
+
+            inicial = c2[1][i]
+        '''print 'fim da impedancia gerador-encontro'
+        for k in trechosgerador:
+            print k.nome, '- zp', k.impedancia_equivalente_positiva
+        print 'impedancia_positiva',impedanciagerador_positiva
+        for k in trechosgerador:
+            print k.nome, '- z0', k.impedancia_equivalente_zero
+        print 'impedancia_zero',impedanciagerador_zero'''
+
+        #calcula a impedância da associação serie ou paralelo
+        if (impedanciagerador_positiva or impedanciagerador_zero) != 0 and (impedanciasub_positiva or impedanciasub_zero) != 0:
+            zparalelo_positiva = impedanciasub_positiva*impedanciagerador_positiva/(impedanciagerador_positiva+impedanciasub_positiva)
+            zparalelo_zero = impedanciasub_zero*impedanciagerador_zero/(impedanciasub_zero+impedanciagerador_zero)
+
+        elif (impedanciagerador_positiva and impedanciagerador_zero) == 0 and (impedanciasub_positiva or impedanciasub_zero) != 0:
+            zparalelo_positiva = impedanciasub_positiva
+            zparalelo_zero = impedanciasub_zero
+
+        elif (impedanciagerador_positiva or impedanciagerador_zero) != 0 and (impedanciasub_positiva and impedanciasub_zero) == 0:
+            zparalelo_positiva = impedanciagerador_positiva
+            zparalelo_zero = impedanciagerador_zero
+        else:
+            zparalelo_positiva = 0
+            zparalelo_zero = 0
+
+        ztotal_positiva = zparalelo_positiva + impedanciacomum_positiva
+        ztotal_zero = zparalelo_zero + impedanciacomum_zero
+
+        #calcula o valor da corrente de curto no caminho ponto_de_encontro-curto
+        curto1 = (3.0) * self.base_sub.corrente / (2 * ztotal_positiva + ztotal_zero)
+        correntecc1 = Fasor(real=curto1.real, imag=curto1.imag, tipo=Fasor.Corrente)
+        correntecc1.base = self.base_sub
+        print 'curto monofasico em ponto comum-ponto de curto - ', correntecc1.mod
+        curto1g = np.abs(impedanciasub_positiva / (impedanciagerador_positiva + impedanciasub_positiva))*2*correntecc1.mod/3+\
+        np.abs(impedanciasub_zero / (impedanciagerador_zero + impedanciasub_zero)) * correntecc1.mod/3
+        print 'curto monofasico em gerador-ponto comum - ', curto1g
+        curto1s = np.abs(impedanciagerador_positiva / (impedanciagerador_positiva + impedanciasub_positiva))*2*correntecc1.mod/3+\
+        np.abs(impedanciagerador_zero / (impedanciagerador_zero + impedanciasub_zero))*correntecc1.mod/3
+        print 'curto monofasico em subestação-ponto comum - ', curto1s
+
+        curto2 = (3 ** 0.5) * self.base_sub.corrente / (2 * ztotal_positiva)
+        correntecc2 = Fasor(real=curto2.real, imag=curto2.imag, tipo=Fasor.Corrente)
+        correntecc2.base = self.base_sub
+        print 'curto bifasico em ponto comum-ponto de curto - ', correntecc2.mod
+
+        curto3 = 1.0 * self.base_sub.corrente / (ztotal_positiva)
+        correntecc3 = Fasor(real=curto3.real, imag=curto3.imag, tipo=Fasor.Corrente)
+        correntecc3.base = self.base_sub
+        print 'curto trifasico em ponto comum-ponto de curto - ', correntecc3.mod
+        curto3g = curto3 * impedanciasub_zero / (impedanciasub_zero + impedanciagerador_zero)
+        correntecc3g = Fasor(real=curto3g.real, imag=curto3g.imag, tipo=Fasor.Corrente)
+        correntecc3g.base = self.base_sub
+        print 'curto trifasico em gerador-ponto comum - ', correntecc3g.mod
+        curto3s = curto3 * impedanciagerador_zero / (impedanciasub_zero + impedanciagerador_zero)
+        correntecc3s = Fasor(real=curto3s.real, imag=curto3s.imag, tipo=Fasor.Corrente)
+        correntecc3s.base = self.base_sub
+        print 'curto trifasico em subestação-ponto comum - ', correntecc3s.mod
+
+    ###########################
+    # CALCULO DE FLUXO DE CARGA
+    ###########################
 
     def _busca_trecho(self, alimentador, n1, n2):
         """Função que busca trechos em um alimendador entre os nós/chaves
@@ -397,16 +729,16 @@ class Trecho(Aresta):
                  n2,
                  fluxo=None,
                  condutor=None,
-                 comprimento=None):
+                 comprimento=None,
+                 resistenciacontato=100):
         assert isinstance(nome, str), 'O parâmetro nome da classe Trecho ' \
                                       'deve ser do tipo str'
-        assert isinstance(n1, NoDeCarga) or isinstance(n1, Chave), 'O parâmetro n1 da classe Trecho ' \
-                                                                   'deve ser do tipo No de carga ' \
-                                                                   'ou do tipo Chave'
-        assert isinstance(n2, NoDeCarga) or isinstance(n2, Chave), 'O parâmetro n2 da classe Trecho ' \
-                                                                   'deve ser do tipo No de carga ' \
-                                                                   'ou do tipo Chave'
-
+        assert isinstance(n1, NoDeCarga) or isinstance(n1, Chave) or isinstance(n1, Gerador), 'O parâmetro n1 da classe Trecho ' \
+                                                                                              'deve ser do tipo No de carga ' \
+                                                                                              'ou do tipo Chave'
+        assert isinstance(n2, NoDeCarga) or isinstance(n2, Chave) or isinstance(n2, Gerador), 'O parâmetro n2 da classe Trecho ' \
+                                                                                              'deve ser do tipo No de carga ' \
+                                                                                              'ou do tipo Chave'
         super(Trecho, self).__init__(nome)
         self.n1 = n1
         self.n2 = n2
@@ -414,6 +746,9 @@ class Trecho(Aresta):
         self.no_jusante = None
         self.condutor = condutor
         self.comprimento = comprimento
+        self.impedancia_positiva = (self.condutor.rp + self.condutor.xp * 1j) * self.comprimento
+        self.impedancia_zero = (self.condutor.rz + self.condutor.xz * 1j) * self.comprimento
+        self.resistencia_contato = resistenciacontato
 
         if fluxo is None:
             self.fluxo = Fasor(real=0.0, imag=0.0, tipo=Fasor.Corrente)
@@ -421,8 +756,32 @@ class Trecho(Aresta):
             self.fluxo = fluxo
 
     def calcula_impedancia(self):
-        return (self.comprimento * self.condutor.rp / 1e3,
-                self.comprimento * self.condutor.xp / 1e3)
+        return (self.comprimento * self.condutor.rp,
+                self.comprimento * self.condutor.xp)
+
+    def calcula_curto_monofasico(self):
+        curto1 = (3.0) * self.base.corrente / (2 * self.impedancia_equivalente_positiva + self.impedancia_equivalente_zero)
+        correntecc = Fasor(real=curto1.real, imag=curto1.imag, tipo=Fasor.Corrente)
+        correntecc.base = self.base
+        return correntecc
+
+    def calcula_curto_bifasico(self):
+        curto2 = (3 ** 0.5) * self.base.corrente / (2 * self.impedancia_equivalente_positiva)
+        correntecc = Fasor(real=curto2.real, imag=curto2.imag, tipo=Fasor.Corrente)
+        correntecc.base = self.base
+        return correntecc
+
+    def calcula_curto_trifasico(self):
+        curto3 = 1.0 * self.base.corrente / (self.impedancia_equivalente_positiva)
+        correntecc = Fasor(real=curto3.real, imag=curto3.imag, tipo=Fasor.Corrente)
+        correntecc.base = self.base
+        return correntecc
+
+    def calcula_curto_monofasico_minimo(self):
+        curto1m = 3.0 * self.base.corrente / (2 * self.impedancia_equivalente_positiva + self.impedancia_equivalente_zero+3*self.resistencia_contato/self.base.impedancia)
+        correntecc = Fasor(real=curto1m.real, imag=curto1m.imag, tipo=Fasor.Corrente)
+        correntecc.base = self.base
+        return correntecc
 
     def __repr__(self):
         return 'Trecho: %s' % self.nome
@@ -864,85 +1223,82 @@ if __name__ == '__main__':
 
     # Nos de carga do alimentador S1_AL1
     s1 = NoDeCarga(nome='S1',
-                   tipo='PV',
                    vizinhos=['A2'],
                    potencia=Fasor(real=0.0, imag=0.0, tipo=Fasor.Potencia),
                    chaves=['1'])
     a1 = NoDeCarga(nome='A1',
-                   tipo='PV',
                    vizinhos=['A2'],
                    potencia=Fasor(real=160.0e3, imag=120.0e3, tipo=Fasor.Potencia))
     a2 = NoDeCarga(nome='A2',
-                   tipo='PV',
                    vizinhos=['S1', 'A1', 'A3', 'C1'],
                    potencia=Fasor(real=150.0e3, imag=110.0e3, tipo=Fasor.Potencia),
                    chaves=['1', '3'])
     a3 = NoDeCarga(nome='A3',
-                   tipo='PV',
                    vizinhos=['A2', 'B1'],
                    potencia=Fasor(real=100.0e3, imag=80.0e3, tipo=Fasor.Potencia),
                    chaves=['2'])
-    b1 = NoDeCarga(nome='B1',
-                   tipo='PV',
-                   vizinhos=['B2', 'A3'],
-                   potencia=Fasor(real=200.0e3, imag=140.0e3, tipo=Fasor.Potencia),
-                   chaves=['2'])
+    b1 = Gerador(nome='B1',
+                 vizinhos=['B2', 'A3'],
+                 potencia=Fasor(real=110e3, imag=80e3, tipo=Fasor.Potencia),
+                 chaves=['2'],
+                 tensao=Fasor(real=0.0, imag=0.0, tipo=Fasor.Tensao),
+                 tipogerador='AEROGERADOR',
+                 maquina='DFIG',
+                 modelofluxo='PV',
+                 qmin=30e3,
+                 qmax=100e3,
+                 tensaogerador=13.700)
     b2 = NoDeCarga(nome='B2',
-                   tipo='PV',
                    vizinhos=['B1', 'B3', 'E2'],
                    potencia=Fasor(real=150.0e3, imag=110.0e3, tipo=Fasor.Potencia),
                    chaves=['4'])
     b3 = NoDeCarga(nome='B3',
-                   tipo='PV',
                    vizinhos=['B2', 'C3'],
                    potencia=Fasor(real=100.0e3, imag=80.0e3, tipo=Fasor.Potencia),
                    chaves=['5'])
-    c1 = NoDeCarga(nome='C1',
-                   tipo='PV',
-                   vizinhos=['C2', 'C3', 'A2'],
-                   potencia=Fasor(real=200.0e3, imag=140.0e3, tipo=Fasor.Potencia),
-                   chaves=['3'])
+    c1 = Gerador(nome='C1',
+                 vizinhos=['C2', 'C3', 'A2'],
+                 potencia=Fasor(real=90e3, imag=55e3, tipo=Fasor.Potencia),
+                 chaves=['3'],
+                 tensao=Fasor(real=0.0, imag=0.0, tipo=Fasor.Tensao),
+                 tipogerador='FOTOVOLTAICO',
+                 maquina='',
+                 modelofluxo='PV',
+                 qmin=20e3,
+                 qmax=80e3,
+                 tensaogerador=13.720)
     c2 = NoDeCarga(nome='C2',
-                   tipo='PV',
                    vizinhos=['C1'],
                    potencia=Fasor(real=150.0e3, imag=110.0e3, tipo=Fasor.Potencia))
     c3 = NoDeCarga(nome='C3',
-                   tipo='PV',
                    vizinhos=['C1', 'E3', 'B3'],
                    potencia=Fasor(real=100.0e3, imag=80.0e3, tipo=Fasor.Potencia),
                    chaves=['5', '8'])
 
     # Nos de carga do alimentador S2_AL1
     s2 = NoDeCarga(nome='S2',
-                   tipo='PV',
                    vizinhos=['D1'],
                    potencia=Fasor(real=0.0, imag=0.0, tipo=Fasor.Potencia),
                    chaves=['6'])
     d1 = NoDeCarga(nome='D1',
-                   tipo='PV',
                    vizinhos=['S2', 'D2', 'D3', 'E1'],
                    potencia=Fasor(real=200.0e3, imag=160.0e3, tipo=Fasor.Potencia),
                    chaves=['6', '7'])
     d2 = NoDeCarga(nome='D2',
-                   tipo='PV',
                    vizinhos=['D1'],
                    potencia=Fasor(real=90.0e3, imag=40.0e3, tipo=Fasor.Potencia))
     d3 = NoDeCarga(nome='D3',
-                   tipo='PV',
                    vizinhos=['D1'],
                    potencia=Fasor(real=100.0e3, imag=80.0e3, tipo=Fasor.Potencia))
     e1 = NoDeCarga(nome='E1',
-                   tipo='PV',
                    vizinhos=['E3', 'E2', 'D1'],
                    potencia=Fasor(real=100.0e3, imag=40.0e3, tipo=Fasor.Potencia),
                    chaves=['7'])
     e2 = NoDeCarga(nome='E2',
-                   tipo='PV',
                    vizinhos=['E1', 'B2'],
                    potencia=Fasor(real=110.0e3, imag=70.0e3, tipo=Fasor.Potencia),
                    chaves=['4'])
     e3 = NoDeCarga(nome='E3',
-                   tipo='PV',
                    vizinhos=['E1', 'C3'],
                    potencia=Fasor(real=150.0e3, imag=80.0e3, tipo=Fasor.Potencia),
                    chaves=['8'])
@@ -1087,6 +1443,7 @@ if __name__ == '__main__':
 
     sub_1_al_1.gerar_arvore_nos_de_carga()
     sub_2_al_1.gerar_arvore_nos_de_carga()
+
 
     # Imprime a representação de todos os setores da subestção
     # na representação

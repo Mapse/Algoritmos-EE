@@ -878,6 +878,89 @@ class Condutor(object):
         self.ampacidade = float(ampacidade)
 
 
+def xii(alimentador, no_):
+
+    trechos = alimentador.trechos.values()  # variável que guarda os techos do alimentador
+    caminho = alimentador.arvore_nos_de_carga.caminho_no_para_raiz(no_)[1]  # variável que guarda o caminho do nó até o nó raiz
+    caminho = list(caminho)  # faz uma lista do array caminho
+    caminho_2 = list(caminho)  # faz uma lista em outra variável auxiliar
+    tr = []  # lista que servirá para guardar os trechos
+    reat = 0
+    # for para a obtenção das variáveis nodecarga e gerador
+
+    for no in caminho:  # for que percorre o caminho
+        for trecho in trechos:  # for que percorre os trechos
+
+            if trecho.n1.nome == no:  # se o n1 do trecho for igual ao nó atual
+
+                if type(trecho.n2) == NoDeCarga:  # se o tipo for gerador verifica se o n2 ta no caminho e se o n2 nao é o próprio nó
+                    if trecho.n2.nome in caminho_2 and trecho.n2.nome != no:
+                        reat += (trecho.comprimento * trecho.condutor.xp)
+                        tr.append(trecho)
+                else:
+                    no_1 = alimentador.nos_de_carga[no]
+
+                    try:
+                        no_2 = alimentador.nos_de_carga[caminho_2[1]]  # pega o próximo nó da iteração
+                    except IndexError:  # como se está removendo os nós o indice irá variar
+                        continue        # para tanto, se houver erro de indice ele continua
+
+                    set_1 = set(no_1.chaves)  # cria um conjunto com as chaves do nó atual
+                    set_2 = set(no_2.chaves)  # cria um conjunto com as chaves do nó da próxima interação
+                                              # quando for s1 ele assume o que????
+                    if set_1.intersection(set_2) != set():
+                        chave = set_1.intersection(set_2).pop()
+                    else:
+                        continue
+
+                    if chave != trecho.n2.nome:
+                        continue
+
+                    for trech in trechos:
+                        if trech.n1.nome == chave:
+                            tr.append(trech)
+                            reat += (trech.comprimento * trech.condutor.xp)
+                        elif trech.n2.nome == chave:
+                            reat += (trech.comprimento * trech.condutor.xp)
+                            tr.append(trech)
+
+            elif trecho.n2.nome == no:
+                if type(trecho.n1) == NoDeCarga:
+                    if trecho.n1.nome in caminho and trecho.n1.nome != no:
+                        tr.append(trecho)
+                        reat += (trecho.comprimento * trecho.condutor.xp)
+                else:
+                    no_1 = alimentador.nos_de_carga[no]
+
+                    try:
+                        no_2 = alimentador.nos_de_carga[caminho_2[1]]
+                    except IndexError:
+                        continue
+
+                    no_2 = alimentador.nos_de_carga[caminho_2[1]]
+                    set_1 = set(no_1.chaves)
+                    set_2 = set(no_2.chaves)
+
+                    if set_1.intersection(set_2) != set():
+                        chave = set_1.intersection(set_2).pop()
+                    else:
+                        continue
+
+                    if chave != trecho.n1.nome:
+                        continue
+
+                    for trech in trechos:
+                        if trech.n1.nome == chave:
+                            tr.append(trech)
+                            reat += (trech.comprimento * trech.condutor.xp)
+                        elif trech.n2.nome == chave:
+                            tr.append(trech)
+                            reat += (trech.comprimento * trech.condutor.xp)
+        caminho_2.remove(no)
+
+    return tr, reat
+
+
 if __name__ == '__main__':
     # Este trecho do módulo faz parte de sua documentacao e serve como exemplo de como
     # utiliza-lo. Uma pequena rede com duas subestações é representada.
@@ -950,18 +1033,10 @@ if __name__ == '__main__':
                    potencia=Fasor(real=100.0e3, imag=80.0e3, tipo=Fasor.Potencia),
                    chaves=['2'])
    
-    b1 = Gerador(nome='B1',
-                 vizinhos=['B2', 'A3'],
-                 potencia=Fasor(real=110e3, imag=80e3, tipo=Fasor.Potencia),
-                 chaves=['2'],
-                 tensao=Fasor(real=0.0, imag=0.0, tipo=Fasor.Tensao),
-                 tipogerador='AEROGERADOR',
-                 maquina='DFIG',
-                 modelofluxo='PV',
-                 qmin=30e3,
-                 qmax=100e3,
-                 tensaogerador=13.700)
-
+    b1 = NoDeCarga(nome='B1',
+                   vizinhos=['B2', 'A3'],
+                   chaves=['2'],
+                   tensao=Fasor(real=0.0, imag=0.0, tipo=Fasor.Tensao))
     b2 = NoDeCarga(nome='B2',
                    tensao=Fasor(real=0.0, imag=0.0, tipo=Fasor.Tensao),
                    vizinhos=['B1', 'B3', 'E2'],
@@ -972,17 +1047,11 @@ if __name__ == '__main__':
                    vizinhos=['B2', 'C3'],
                    potencia=Fasor(real=100.0e3, imag=80.0e3, tipo=Fasor.Potencia),
                    chaves=['5'])
-    c1 = Gerador(nome='C1',
-                 vizinhos=['C2', 'C3', 'A2'],
-                 potencia=Fasor(real=90e3, imag=55e3, tipo=Fasor.Potencia),
-                 chaves=['3'],
-                 tensao=Fasor(real=0.0, imag=0.0, tipo=Fasor.Tensao),
-                 tipogerador='FOTOVOLTAICO',
-                 maquina='',
-                 modelofluxo='PV',
-                 qmin=20e3,
-                 qmax=80e3,
-                 tensaogerador=13.720)
+    c1 = NoDeCarga(nome='C1',
+                   vizinhos=['C2', 'C3', 'A2'],
+                   chaves=['3'],
+                   tensao=Fasor(real=0.0, imag=0.0, tipo=Fasor.Tensao))
+
     c2 = NoDeCarga(nome='C2',
                    tensao=Fasor(real=0.0, imag=0.0, tipo=Fasor.Tensao),
                    vizinhos=['C1'],
@@ -1191,3 +1260,27 @@ if __name__ == '__main__':
     # imprime os trechos da rede S1
     # for trecho in _sub_1.trechos.values():
     #    print trecho
+
+
+b1 = Gerador(nome='B1',
+                     vizinhos=['B2', 'A3'],
+                     potencia=Fasor(real=110e3, imag=80e3, tipo=Fasor.Potencia),
+                     chaves=['2'],
+                     tensao=Fasor(real=0.0, imag=0.0, tipo=Fasor.Tensao),
+                     tipogerador='AEROGERADOR',
+                     maquina='DFIG',
+                     modelofluxo='PV',
+                     qmin=30e3,
+                     qmax=100e3,
+                     tensaogerador=13.700)
+c1 = Gerador(nome='C1',
+                 vizinhos=['C2', 'C3', 'A2'],
+                 potencia=Fasor(real=90e3, imag=55e3, tipo=Fasor.Potencia),
+                 chaves=['3'],
+                 tensao=Fasor(real=0.0, imag=0.0, tipo=Fasor.Tensao),
+                 tipogerador='FOTOVOLTAICO',
+                 maquina='',
+                 modelofluxo='PV',
+                 qmin=20e3,
+                 qmax=80e3,
+                 tensaogerador=13.720)
