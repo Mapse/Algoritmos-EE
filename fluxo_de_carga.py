@@ -101,6 +101,7 @@ class Gerador(object):
                  qmin,
                  qmax,
                  tensaogerador,
+                 dvtol,
                  potencia=Fasor(real=0.0, imag=0.0, tipo=Fasor.Potencia),
                  tensao=Fasor(real=0.0, imag=0.0, tipo=Fasor.Tensao),
                  chaves=None):
@@ -108,6 +109,7 @@ class Gerador(object):
         self.nome = nome
         self.vizinhos = vizinhos
         self.potencia = potencia
+        self.dvtol = dvtol
         self.potencia_eq = Fasor(real=0.0, imag=0.0, tipo=Fasor.Potencia)
         self.tensao = tensao
         self.tipogerador = tipogerador
@@ -1036,6 +1038,7 @@ if __name__ == '__main__':
     b1 = NoDeCarga(nome='B1',
                    vizinhos=['B2', 'A3'],
                    chaves=['2'],
+                   potencia=Fasor(real=-100.0e3, imag=-80.0e3, tipo=Fasor.Potencia),
                    tensao=Fasor(real=0.0, imag=0.0, tipo=Fasor.Tensao))
     b2 = NoDeCarga(nome='B2',
                    tensao=Fasor(real=0.0, imag=0.0, tipo=Fasor.Tensao),
@@ -1050,6 +1053,7 @@ if __name__ == '__main__':
     c1 = NoDeCarga(nome='C1',
                    vizinhos=['C2', 'C3', 'A2'],
                    chaves=['3'],
+                   potencia=Fasor(real=-200.0e3, imag=-180.0e3, tipo=Fasor.Potencia),
                    tensao=Fasor(real=0.0, imag=0.0, tipo=Fasor.Tensao))
 
     c2 = NoDeCarga(nome='C2',
@@ -1262,25 +1266,3 @@ if __name__ == '__main__':
     #    print trecho
 
 
-b1 = Gerador(nome='B1',
-                     vizinhos=['B2', 'A3'],
-                     potencia=Fasor(real=110e3, imag=80e3, tipo=Fasor.Potencia),
-                     chaves=['2'],
-                     tensao=Fasor(real=0.0, imag=0.0, tipo=Fasor.Tensao),
-                     tipogerador='AEROGERADOR',
-                     maquina='DFIG',
-                     modelofluxo='PV',
-                     qmin=30e3,
-                     qmax=100e3,
-                     tensaogerador=13.700)
-c1 = Gerador(nome='C1',
-                 vizinhos=['C2', 'C3', 'A2'],
-                 potencia=Fasor(real=90e3, imag=55e3, tipo=Fasor.Potencia),
-                 chaves=['3'],
-                 tensao=Fasor(real=0.0, imag=0.0, tipo=Fasor.Tensao),
-                 tipogerador='FOTOVOLTAICO',
-                 maquina='',
-                 modelofluxo='PV',
-                 qmin=20e3,
-                 qmax=80e3,
-                 tensaogerador=13.720)

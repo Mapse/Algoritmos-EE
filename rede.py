@@ -1,6 +1,7 @@
 # coding=utf-8
 from terminaltables import AsciiTable
 import numpy as np
+from scipy import linalg
 from random import randint
 from rnp import Arvore, Aresta
 from util import Fasor, Base
@@ -102,6 +103,7 @@ class Gerador(object):
                  qmin,
                  qmax,
                  tensaogerador,
+                 dvtol,
                  potencia=Fasor(real=0.0, imag=0.0, tipo=Fasor.Potencia),
                  tensao=Fasor(real=0.0, imag=0.0, tipo=Fasor.Tensao),
                  chaves=None):
@@ -109,6 +111,7 @@ class Gerador(object):
         self.nome = nome
         self.vizinhos = vizinhos
         self.potencia = potencia
+        self.dvtol = dvtol
         self.potencia_eq = Fasor(real=0.0, imag=0.0, tipo=Fasor.Potencia)
         self.tensao = tensao
         self.tipogerador = tipogerador
@@ -162,7 +165,7 @@ class Subestacao(object):
 
         for alimentador in alimentadores:  # varre os alimentadores para criar as tensões de base e calcula as impedâncias equivalentes
             for trecho in alimentador.trechos.values():
-                trecho.base = self.base_sub #DÚVIDA AQUI
+                trecho.base = self.base_sub  # DÚVIDA AQUI
                 trecho.impedancia_equivalente_positiva = trecho.impedancia_positiva/trecho.base.impedancia
                 trecho.impedancia_equivalente_zero = trecho.impedancia_zero / trecho.base.impedancia
 
@@ -184,40 +187,40 @@ class Subestacao(object):
         if tipo == 'trifasico':
             self.curto_trifasico = [['Trecho 3fasico', 'Curto pu', 'Curto A']]
 
-            #para cada trecho alimentado pela subestação calcula o curto
+            # para cada trecho alimentado pela subestação calcula o curto
             for alimentador_atual, r in self.alimentadores.iteritems():
                 for i in self.alimentadores[alimentador_atual].trechos.values():
                     curto = i.calcula_curto_trifasico()
-                    self.curto_trifasico.append([i.nome,str(curto.pu),str(curto.mod)])
+                    self.curto_trifasico.append([i.nome, str(curto.pu), str(curto.mod)])
             table = AsciiTable(self.curto_trifasico)
             print table.table
 
         elif tipo == 'monofasico':
             self.curto_monofasico = [['Trecho 1fasico', 'Curto pu', 'Curto A']]
 
-            #para cada trecho alimentado pela subestação calcula o curto
+            # para cada trecho alimentado pela subestação calcula o curto
             for alimentador_atual, r in self.alimentadores.iteritems():
                 for i in self.alimentadores[alimentador_atual].trechos.values():
                     curto = i.calcula_curto_monofasico()
-                    self.curto_monofasico.append([i.nome,str(curto.pu),str(curto.mod)])
+                    self.curto_monofasico.append([i.nome, str(curto.pu), str(curto.mod)])
             table = AsciiTable(self.curto_monofasico)
             print table.table
 
         elif tipo == 'bifasico':
             self.curto_bifasico = [['Trecho 2fasico', 'Curto pu', 'Curto A']]
 
-            #para cada trecho alimentado pela subestação calcula o curto
+            # para cada trecho alimentado pela subestação calcula o curto
             for alimentador_atual, r in self.alimentadores.iteritems():
                 for i in self.alimentadores[alimentador_atual].trechos.values():
                     curto = i.calcula_curto_bifasico()
-                    self.curto_bifasico.append([i.nome,str(curto.pu),str(curto.mod)])
+                    self.curto_bifasico.append([i.nome, str(curto.pu), str(curto.mod)])
             table = AsciiTable(self.curto_bifasico)
             print table.table
 
         elif tipo == 'monofasico_minimo':
             self.curto_monofasico_minimo = [['Trecho 1fasico min', 'Curto pu', 'Curto A']]
 
-            #para cada trecho alimentado pela subestação calcula o curto
+            # para cada trecho alimentado pela subestação calcula o curto
             for alimentador_atual, r in self.alimentadores.iteritems():
                 for i in self.alimentadores[alimentador_atual].trechos.values():
                     curto = i.calcula_curto_monofasico_minimo()
@@ -228,7 +231,7 @@ class Subestacao(object):
     def calculaimpedanciaeq(self):
         """Função que calcula a impedancia equivalente da subestação até o final do cada trecho"""
 
-        #for coloca os valores de impedância em pu
+        # for coloca os valores de impedância em pu
         for alimentador in self.alimentadores.values():
             for trecho in alimentador.trechos.values():
                 trecho.base = self.base_sub
@@ -238,27 +241,28 @@ class Subestacao(object):
         # guarda os trechos em que já foram calculados a impedância equivalente
         trechosvisitados = []
 
-        #procura o nó inicial(raiz) do alimentador
+        # procura o nó inicial(raiz) do alimentador
         for alimentador_atual, r in self.alimentadores.iteritems():
             for i in self.alimentadores[alimentador_atual].trechos.values(): # por que nao i in self.r.trechos.values():??
                 for j in self.alimentadores[alimentador_atual].setores[r.arvore_nos_de_carga.raiz].nos_de_carga.keys(): #DUVIDA AQUI
-                    #nó a partir do qual será procurado trechos conectados a ele
+                    # nó a partir do qual será procurado trechos conectados a ele
                     prox_no = self.alimentadores[alimentador_atual].setores[r.arvore_nos_de_carga.raiz].nos_de_carga[j]
-                    #último trecho que foi calculado a impedância equivalente
-                    trechoatual = self #DÚVIDA AQUI
+                    # último trecho que foi calculado a impedância equivalente
+                    trechoatual = self  # DÚVIDA AQUI
                     break
                 break
             break
             # ALIMENTADOR ATUAL?
         self._calculaimpedanciaeq(trechoatual, prox_no, alimentador_atual, trechosvisitados)
 #SE TRECHOS VISITADOS AINDA É VAZIO COMO FUNCIONARÁ O IF?
+
     def _calculaimpedanciaeq(self, trecho_anterior, no_atual, alimentador_atual, trechosvisitados):
 
-        #procura trechos conectados ao no_atual (prox_no da execução anterior)
+        # procura trechos conectados ao no_atual (prox_no da execução anterior)
         for i in self.alimentadores[alimentador_atual].trechos.values():
             if (i not in trechosvisitados and i.n1 == no_atual) or (i not in trechosvisitados and i.n2  == no_atual):
 
-                #verifica se a ligação é feita por meio de chave, verificando-se o estado da chave
+                # verifica se a ligação é feita por meio de chave, verificando-se o estado da chave
                 if type(no_atual) == Chave:
                     if no_atual.estado == 0:
                         continue
@@ -285,27 +289,28 @@ class Subestacao(object):
         return
 
     def calculacurtogerador(self, alimentador, gerador, ponto_de_curto):
-        """Função que calcula o valor do curto circuito com a contribuição de um gerador"""
+        """Função que calcula o valor do curto circuito com a contribuição de
+        um gerador"""
 
-        #for coloca os valores de impedância em pu
+        # for coloca os valores de impedância em pu
         for al in self.alimentadores.values():
             for trecho in al.trechos.values():
                 trecho.base = self.base_sub
                 trecho.base = self.base_sub
                 trecho.impedancia_equivalente_positiva = trecho.impedancia_positiva/ trecho.base.impedancia
                 trecho.impedancia_equivalente_zero = trecho.impedancia_zero / trecho.base.impedancia
-        #guarda o caminho subestaçã-gerador e subestação-ponto_de_curto
+        # guarda o caminho subestaçã-gerador e subestação-ponto_de_curto
         c1 = self.alimentadores[alimentador].arvore_nos_de_carga.caminho_no_para_no(self.alimentadores[alimentador].raiz,ponto_de_curto,0)
         c2 = self.alimentadores[alimentador].arvore_nos_de_carga.caminho_no_para_no(self.alimentadores[alimentador].raiz,gerador,0)
 
-        #procura o nó de maior profundidade (ponto de encontro) que ainda é comum aos dois caminhos
+        # procura o nó de maior profundidade (ponto de encontro) que ainda é comum aos dois caminhos
         for i in range(len(c1[0])):
             for j in range(len(c2[0])):
                 if c1[1][i] == c2[1][j]:
                     ponto_de_encontro = c1[1][i]
                     profundidadec1 = i
                     profundidadec2 = j
-        print 'ponto de encontro',ponto_de_encontro
+        print 'ponto de encontro', ponto_de_encontro
 
         impedanciasub_positiva = 0
         impedanciasub_zero = 0
@@ -663,7 +668,7 @@ class Subestacao(object):
                 no.tensao.mod = v_jus
                 no.tensao.ang = ang * 180.0 / np.pi
 
-                print 'Tensao do no {nome}: {tens}'.format(nome=no.nome, tens=no.tensao.mod/1e3)
+                # print 'Tensao do no {nome}: {tens}'.format(nome=no.nome, tens=no.tensao.mod/1e3)
 
                 # calcula o fluxo de corrente passante no trecho
                 corrente = no.tensao.real - no_mon.tensao.real
@@ -684,42 +689,280 @@ class Subestacao(object):
                                          tipo=Fasor.Corrente)
             prof += 1
 
-    def calcular_fluxo_de_carga(self):
+    def atribuir_potencia(self, alimentador):
+        """ Funcao que atribui potencia negativa em geradores para o calculo do
+        fluxo de potencia  """
+        # percorre os nos/geradores do sistema
+        for nos in alimentador.nos_de_carga.values():
+            # se a classe gerador for instanciada, atribui-se a potência
+            # negativa ao nó da iteração.
+            if isinstance(nos, Gerador):
+                nos.potencia.real = (-1) * nos.potencia.real
+                nos.potencia.imag = (-1) * nos.potencia.imag
 
+    def tensaogerador(self, alimentador):
+        """ Funcao que retorna uma lista com os geradores que nao convergiram,
+        a quantidade de geradores e a matriz
+            com as diferenças de tennsoes de cada gerador """
+
+        count = 0
+        diftensao = list()
+        listager = list()
+        # percorre nos do sistema
+        for nos in alimentador.nos_de_carga.values():
+            # identifica os geradores do sistema
+            if isinstance(nos, Gerador):
+                # trata apenas geradores modelados como PV
+                if nos.modelofluxo == 'PV':
+                    # calcula a diferença entre a tensão calculada com o fluxo
+                    # de carga e a tensao do gerador
+                    deltav = np.array([[nos.tensaogerador - float(nos.tensao.mod)]])
+                    # se a diferença de tensao for maior do que a tolerancia o gerador será guardado
+                    if abs(deltav) > nos.dvtol:
+                        # guarda as diferenças de tensões dos geradores não convergidos na lista
+                        diftensao.append(deltav)
+                        # guarda o objeto gerador
+                        listager.append(nos)
+                        # incremento que define a quantidade geradores não convergidos
+                        count += 1
+        # cria um array para auxiliar na formação da matriz das diferenças de tensões
+        aux = np.array([[]])
+        # caso diftensao seja diferente de vazio, ou seja, existe gerador que não convergiu
+        # forma-se a matriz das diferenças de tensões
+        if diftensao != []:
+            # concatena a primeira diferença de tensão com o array auxiliar
+            dif = np.concatenate((diftensao[0], aux), axis=1)
+            # remove o primeiro elemento deixando apenas o array vazio
+            diftensao.pop(0)
+            # adiciona todos os elementos à matriz de diferença de tensões, incluindo o elemento removido
+            for i in diftensao:  # for que percorre a lista de array para realizar o restante da concatenação
+                dif = np.concatenate((dif, i))
+            diftensao = dif
+
+        print diftensao
+        return listager, count, diftensao  # retorna a lista com os geradores a quantidade de geradores e a matriz coluna da diferença de tensões
+
+    def matrix_reatancia(self, alimentador):
+        """funcao... """
+        listageradores, numgeradores, dVgeradores = self.tensaogerador(alimentador)
+        listageradores2 = self.tensaogerador(alimentador)[0]
+        listageradores3 = self.tensaogerador(alimentador)[0]
+        x = np.zeros((numgeradores, numgeradores))
+        aux = []
+        rem = []
+        for i in listageradores2:
+            for j in listageradores3:
+                if i.nome == j.nome:
+                    pass
+                else:
+                    if j.nome in rem:
+                        pass
+                    else:
+                        aux.append(self.xij(alimentador, i.nome, j.nome))
+                        rem.append(i.nome)
+        for i in range(np.shape(x)[0]):
+            for j in range(np.shape(x)[1]):
+                if i == j:
+                    for no in listageradores:
+                        x[i, j] = self.xii(alimentador, no.nome)
+                        listageradores.remove(no)
+                        break
+                elif j > i:
+                    for reat in aux:
+                        if x[i, j] == 0:
+                            x[i, j] = reat
+                            x[j, i] = reat
+                            aux.remove(reat)
+                            break
+                        else:
+                            pass
+        return x
+
+    def reativo(self, alimentador):
+        dq = np.dot(linalg.inv(self.matrix_reatancia(alimentador)), self.tensaogerador(alimentador)[2])
+        for dv, pot, ger in zip(self.tensaogerador(alimentador)[2], dq, self.tensaogerador(alimentador)[0]):
+            if dv > 0:
+                ger.potencia.imag = ger.potencia.imag - 50 * pot[0]
+            elif dv < 0:
+                ger.potencia.imag = ger.potencia.imag + 50 * pot[0]
+
+            if abs(ger.potencia.imag) > abs(ger.qmax):
+                ger.potencia.imag = -ger.qmax
+            elif abs(ger.potencia.imag) < abs(ger.qmin):
+                ger.potencia.imag = -ger.qmin
+
+    def xii(self, alimentador, no_):
+
+        trechos = alimentador.trechos.values()  # variável que guarda os techos do alimentador
+        caminho = alimentador.arvore_nos_de_carga.caminho_no_para_raiz(no_)[1]  # variável que guarda o caminho do nó até o nó raiz
+        caminho = list(caminho)  # faz uma lista do array caminho
+        caminho_2 = list(caminho)  # faz uma lista em outra variável auxiliar
+        tr = []  # lista que servirá para guardar os trechos
+        reat = 0
+        # for para a obtenção das variáveis nodecarga e gerador
+
+        for no in caminho:  # for que percorre o caminho
+            for trecho in trechos:  # for que percorre os trechos
+
+                if trecho.n1.nome == no:  # se o n1 do trecho for igual ao nó atual
+
+                    if type(trecho.n2) == NoDeCarga or type(trecho.n2) == Gerador:  # se o tipo for gerador verifica se o n2 ta no caminho e se o n2 nao é o próprio nó
+                        if trecho.n2.nome in caminho_2 and trecho.n2.nome != no:
+                            reat += (trecho.comprimento * trecho.condutor.xp)
+                            tr.append(trecho)
+                    else:
+                        no_1 = alimentador.nos_de_carga[no]
+
+                        try:
+                            no_2 = alimentador.nos_de_carga[caminho_2[1]]  # pega o próximo nó da iteração
+                        except IndexError:  # como se está removendo os nós o indice irá variar
+                            continue        # para tanto, se houver erro de indice ele continua
+
+                        set_1 = set(no_1.chaves)  # cria um conjunto com as chaves do nó atual
+                        set_2 = set(no_2.chaves)  # cria um conjunto com as chaves do nó da próxima interação
+                                                  # quando for s1 ele assume o que????
+                        if set_1.intersection(set_2) != set():
+                            chave = set_1.intersection(set_2).pop()
+                        else:
+                            continue
+
+                        if chave != trecho.n2.nome:
+                            continue
+
+                        for trech in trechos:
+                            if trech.n1.nome == chave:
+                                tr.append(trech)
+                                reat += (trech.comprimento * trech.condutor.xp)
+                            elif trech.n2.nome == chave:
+                                reat += (trech.comprimento * trech.condutor.xp)
+                                tr.append(trech)
+
+                elif trecho.n2.nome == no:
+                    if type(trecho.n1) == NoDeCarga or type(trecho.n1) == Gerador:
+                        if trecho.n1.nome in caminho and trecho.n1.nome != no:
+                            tr.append(trecho)
+                            reat += (trecho.comprimento * trecho.condutor.xp)
+                    else:
+                        no_1 = alimentador.nos_de_carga[no]
+
+                        try:
+                            no_2 = alimentador.nos_de_carga[caminho_2[1]]
+                        except IndexError:
+                            continue
+
+                        no_2 = alimentador.nos_de_carga[caminho_2[1]]
+                        set_1 = set(no_1.chaves)
+                        set_2 = set(no_2.chaves)
+
+                        if set_1.intersection(set_2) != set():
+                            chave = set_1.intersection(set_2).pop()
+                        else:
+                            continue
+
+                        if chave != trecho.n1.nome:
+                            continue
+
+                        for trech in trechos:
+                            if trech.n1.nome == chave:
+                                tr.append(trech)
+                                reat += (trech.comprimento * trech.condutor.xp)
+                            elif trech.n2.nome == chave:
+                                tr.append(trech)
+                                reat += (trech.comprimento * trech.condutor.xp)
+            caminho_2.remove(no)
+
+        return reat
+
+    def xij(self, alimentador, no_1, no_2):
+
+        caminho_1 = alimentador.arvore_nos_de_carga.caminho_no_para_raiz(no_1)
+        caminho_2 = alimentador.arvore_nos_de_carga.caminho_no_para_raiz(no_2)
+
+        max_prof = 0
+        no_max = None
+
+        for i, ix in zip(caminho_1[1, :], caminho_1[0, :]):
+            for j, jx in zip(caminho_2[1, :], caminho_2[0, :]):
+                if i == j:
+                    if int(ix) > max_prof:
+                        max_prof = int(ix)
+                        no_max = i
+
+        return self.xii(alimentador, no_max)
+
+    def calcular_fluxo_pq(self, alimentador):
+        max_iteracaoes = 50
+        criterio_converg = 0.001
+        converg = 1e6
+        iter = 0
+
+        print '============================'
+        print 'Varredura no alimentador {al}'.format(al=alimentador.nome)
+
+        # dicionário que guarda o nome dos nós e atribui o critério de convergência
+        converg_nos = dict()
+        for no in alimentador.nos_de_carga.values():
+            converg_nos[no.nome] = 1e6
+        # testa se o máximo de iterações foi alcançada e a convergência
+        while iter <= max_iteracaoes and converg > criterio_converg:
+            iter += 1
+            #print '-------------------------'
+            #print 'Iteração: {iter}'.format(iter=iter)
+            # dicionário que guarda as o nome dos nós na chave a suas tensões nos valores
+            tensao_nos = dict()
+            for no in alimentador.nos_de_carga.values():
+                tensao_nos[no.nome] = Fasor(real=no.tensao.real,
+                                            imag=no.tensao.imag,
+                                            tipo=Fasor.Tensao)
+            # varre o alimentador calculado as potências e as tensões
+            self._varrer_alimentador(alimentador)
+            # faz a diferença entre os valores de tensões passados e valores de
+            # tensões atuais para verificar a convergência
+            for no in alimentador.nos_de_carga.values():
+                converg_nos[no.nome] = abs(tensao_nos[no.nome].mod -
+                                           no.tensao.mod)
+            # toma o valor máximo de diferença de tensão para todos os nós da rede
+            converg = max(converg_nos.values())
+            # print 'Max. diferença de tensões: {conv}'.format(conv=converg)
+        # se convergiu retorna verdadeiro, se não convergiu retorna falso
+        if converg < criterio_converg:
+            return True
+        else:
+            return False
+
+    def calcular_fluxo_de_carga(self):
+        # atribui a tensão da subestação e a todos os nós da rede
         f1 = Fasor(mod=13.8e3, ang=0.0, tipo=Fasor.Tensao)
         self._atribuir_tensao_a_subestacao(f1)
-
+        # for  que percorre os alimentadores da subestação dada
         for alimentador in self.alimentadores.values():
-            max_iteracaoes = 50
-            criterio_converg = 0.001
-            converg = 1e6
-            iter = 0
+            # atribui potência negativa para os geradores da rede
+            self.atribuir_potencia(alimentador)
+            # chama o método para a realização do backward/forward sweep
+            converg = self.calcular_fluxo_pq(alimentador)
+            # se o fluxo de carga convergiu se realiza a análise dos geradores
+            if converg:
+                max_iteracoes = 10000
+                iter = 0
 
-            print '============================'
-            print 'Varredura no alimentador {al}'.format(al=alimentador.nome)
-            converg_nos = dict()
-            for no in alimentador.nos_de_carga.values():
-                converg_nos[no.nome] = 1e6
+                while True:
+                    # armazena lista com os geradores, a quantidade deles e a
+                    # matriz  com a diferença de tensão em cada um
+                    listager, count, diftensao = self.tensaogerador(alimentador)
+                    iter += 1
+                    if iter >= max_iteracoes or listager == []:
+                        if iter >= max_iteracoes:
+                            print 'Numero maximo de iteracoes atingidas'
+                        elif listager == []:
+                            print 'Convergencia atingida'
+                        break
+                    else:
+                        # calculo do reativo para os geradores
+                        self.reativo(alimentador)
+                        converg = self.calcular_fluxo_pq(alimentador)
+                        if not converg:
+                            break
 
-            while iter <= max_iteracaoes and converg > criterio_converg:
-                iter += 1
-                print '-------------------------'
-                print 'Iteração: {iter}'.format(iter=iter)
-
-                tensao_nos = dict()
-                for no in alimentador.nos_de_carga.values():
-                    tensao_nos[no.nome] = Fasor(real=no.tensao.real,
-                                                imag=no.tensao.imag,
-                                                tipo=Fasor.Tensao)
-
-                self._varrer_alimentador(alimentador)
-
-                for no in alimentador.nos_de_carga.values():
-                    converg_nos[no.nome] = abs(tensao_nos[no.nome].mod -
-                                               no.tensao.mod)
-
-                converg = max(converg_nos.values())
-                print 'Max. diferença de tensões: {conv}'.format(conv=converg)
 
 
 class Trecho(Aresta):
@@ -1228,17 +1471,18 @@ if __name__ == '__main__':
                    chaves=['1'])
     a1 = NoDeCarga(nome='A1',
                    vizinhos=['A2'],
-                   potencia=Fasor(real=160.0e3, imag=120.0e3, tipo=Fasor.Potencia))
+                   potencia=Fasor(real=460.0e3, imag=250.0e3, tipo=Fasor.Potencia))
     a2 = NoDeCarga(nome='A2',
                    vizinhos=['S1', 'A1', 'A3', 'C1'],
-                   potencia=Fasor(real=150.0e3, imag=110.0e3, tipo=Fasor.Potencia),
+                   potencia=Fasor(real=350.0e3, imag=220.0e3, tipo=Fasor.Potencia),
                    chaves=['1', '3'])
     a3 = NoDeCarga(nome='A3',
                    vizinhos=['A2', 'B1'],
-                   potencia=Fasor(real=100.0e3, imag=80.0e3, tipo=Fasor.Potencia),
+                   potencia=Fasor(real=500.0e3, imag=280.0e3, tipo=Fasor.Potencia),
                    chaves=['2'])
     b1 = Gerador(nome='B1',
                  vizinhos=['B2', 'A3'],
+                 dvtol=1,
                  potencia=Fasor(real=110e3, imag=80e3, tipo=Fasor.Potencia),
                  chaves=['2'],
                  tensao=Fasor(real=0.0, imag=0.0, tipo=Fasor.Tensao),
@@ -1246,11 +1490,11 @@ if __name__ == '__main__':
                  maquina='DFIG',
                  modelofluxo='PV',
                  qmin=30e3,
-                 qmax=100e3,
-                 tensaogerador=13.700)
+                 qmax=650e3,
+                 tensaogerador=13800)
     b2 = NoDeCarga(nome='B2',
                    vizinhos=['B1', 'B3', 'E2'],
-                   potencia=Fasor(real=150.0e3, imag=110.0e3, tipo=Fasor.Potencia),
+                   potencia=Fasor(real=450.0e3, imag=230.0e3, tipo=Fasor.Potencia),
                    chaves=['4'])
     b3 = NoDeCarga(nome='B3',
                    vizinhos=['B2', 'C3'],
@@ -1258,6 +1502,7 @@ if __name__ == '__main__':
                    chaves=['5'])
     c1 = Gerador(nome='C1',
                  vizinhos=['C2', 'C3', 'A2'],
+                 dvtol=1,
                  potencia=Fasor(real=90e3, imag=55e3, tipo=Fasor.Potencia),
                  chaves=['3'],
                  tensao=Fasor(real=0.0, imag=0.0, tipo=Fasor.Tensao),
@@ -1265,14 +1510,14 @@ if __name__ == '__main__':
                  maquina='',
                  modelofluxo='PV',
                  qmin=20e3,
-                 qmax=80e3,
-                 tensaogerador=13.720)
+                 qmax=650e3,
+                 tensaogerador=13800)
     c2 = NoDeCarga(nome='C2',
                    vizinhos=['C1'],
-                   potencia=Fasor(real=150.0e3, imag=110.0e3, tipo=Fasor.Potencia))
+                   potencia=Fasor(real=650.0e3, imag=330.0e3, tipo=Fasor.Potencia))
     c3 = NoDeCarga(nome='C3',
                    vizinhos=['C1', 'E3', 'B3'],
-                   potencia=Fasor(real=100.0e3, imag=80.0e3, tipo=Fasor.Potencia),
+                   potencia=Fasor(real=300.0e3, imag=180.0e3, tipo=Fasor.Potencia),
                    chaves=['5', '8'])
 
     # Nos de carga do alimentador S2_AL1

@@ -3,8 +3,10 @@
 
 # calculo de capacidade
 
-from fluxo_de_carga import NoDeCarga, Gerador, Trecho
+
 from rede import *
+from numpy import concatenate, array, shape
+from scipy import linalg
 
 
 def calcular_capacidade(alimentador):
@@ -13,29 +15,87 @@ def calcular_capacidade(alimentador):
             print 'O trecho  %s está com sobrecorrente!' % trecho.nome
 
 
-def atribuir_potencia(alimentador, gerador):
+def atribuir_potencia(alimentador):
     """ Funcao que atribui potencia negativa em geradores para o calculo do fluxo de potencia  """
     for nos in alimentador.nos_de_carga.values():  # percorre os nos/geradores do sistema
-        if isinstance(nos, gerador):  # se a classe gerador for instanciada, atribui-se a potência negativa ao nó da iteração.
+        if isinstance(nos, Gerador):  # se a classe gerador for instanciada, atribui-se a potência negativa ao nó da iteração.
             nos.potencia.real = (-1) * nos.potencia.real
             nos.potencia.imag = (-1) * nos.potencia.imag
 
 
-def tensaogerador(alimentador, gerador):  # Função que percorre o sistema e identifica quais geradores ficaram com tensao fora dos limites
+def tensaogerador(alimentador):  # Função que percorre o sistema e identifica quais geradores ficaram com tensao fora dos limites
 
-    count = 1
+    count = 0
     diftensao = list()
-    listanos = list()
-    for nos in alimentador.nos_de_carga.values():  #percorre nos do sistema
-        if isinstance(nos, gerador):
+    listager = list()
+    for nos in alimentador.nos_de_carga.values():  # percorre nos do sistema
+        if isinstance(nos, Gerador):
             if nos.modelofluxo == 'PV':  # trata apenas geradores modelados como PV
 
-                deltav = float(nos.tensao.mod) - nos.tensaogerador  #calcula a diferença entre a tensão calculada com o fluxo de carga e a tensao do gerador
-                diftensao.append(deltav)   # guarda as diferenças de tensões dos geradores não convergidos na lista
-                listanos.append(nos)  # guarda o objeto gerador
-                count += 1  # incremento que define a quantidade geradores não convergidos
-                print diftensao
-    return listanos
+                deltav = array([[nos.tensaogerador - float(nos.tensao.mod)]])  #calcula a diferença entre a tensão calculada com o fluxo de carga e a tensao do gerador
+                if abs(deltav) > nos.dvtol:  # se a diferença de tensao for maior do que a tolerancia o gerador será tratato
+                    diftensao.append(deltav)   # guarda as diferenças de tensões dos geradores não convergidos na lista
+                    listager.append(nos)  # guarda o objeto gerador
+                    count += 1  # incremento que define a quantidade geradores não convergidos
+
+    aux = array([[]])  # cria um array para auxiliar na concatenação
+    dif = concatenate((diftensao[0], aux), axis=1)  # concatena a primeira diferença de tensão com o array auxiliar
+    for i in diftensao:  # for que percorre a lista de array para realizar o restante da concatenação
+        if i in dif:  # se o array já estiver no array coluna ele não é contabilizado
+            pass
+        else:  # caso não esteja ele é adicionado
+            dif = concatenate((dif, i))
+    diftensao = dif
+
+    return listager, count, diftensao  # retorna a lista com os geradores a quantidade de geradores e a matriz coluna da diferença de tensões
+
+
+def matrix_reatancia(alimentador):
+    """funcao... """
+    listageradores, numgeradores, dVgeradores = tensaogerador(alimentador)
+    listageradores2 = tensaogerador(alimentador)[0]
+    listageradores3 = tensaogerador(alimentador)[0]
+    x = np.zeros((numgeradores, numgeradores))
+    aux = []
+    rem = []
+    for i in listageradores2:
+        for j in listageradores3:
+            if i.nome == j.nome:
+                pass
+            else:
+                if j.nome in rem:
+                    pass
+                else:
+                    aux.append(xij(alimentador, i.nome, j.nome))
+                    rem.append(i.nome)
+    for i in range(shape(x)[0]):
+        for j in range(shape(x)[1]):
+            if i == j:
+                for no in listageradores:
+                    x[i, j] = xii(alimentador, no.nome)
+                    listageradores.remove(no)
+                    break
+            elif j > i:
+                for reat in aux:
+                    if x[i, j] == 0:
+                        x[i, j] = reat
+                        x[j, i] = reat
+                        aux.remove(reat)
+                        break
+                    else:
+                        pass
+    return x
+
+
+def reativo(alimentador):
+    dq = dot(linagl.inv(matrix_reatancia(alimentador)), tensaogerador(alimentador)[2])
+for tensao, pot, ger in zip(tensaogerador(alimentador[2]), dq, tensaogerador(alimentador)[0]:
+    if tensao > 0:
+        ger.potencia = ger.potencia + 3 * pot
+    elif tensao < 0:
+        ger.potencia = ger.potencia - 3 * pot
+    
+
 
 
 def xii(alimentador, no_):
@@ -118,7 +178,7 @@ def xii(alimentador, no_):
                             reat += (trech.comprimento * trech.condutor.xp)
         caminho_2.remove(no)
 
-    return tr, reat
+    return reat
 
 
 def xij(alimentador, no_1, no_2):
@@ -201,7 +261,7 @@ def xij(alimentador, no_1, no_2):
                             reat += (trech.comprimento * trech.condutor.xp)
         caminho_2.remove(no)
 
-    return tr, reat
+    return reat
 
 if __name__ == '__main__':
     # Este trecho do módulo faz parte de sua documentacao e serve como exemplo de como
@@ -272,6 +332,7 @@ if __name__ == '__main__':
                    chaves=['2'])
     b1 = Gerador(nome='B1',
                  vizinhos=['B2', 'A3'],
+                 dvtol=20,
                  potencia=Fasor(real=110e3, imag=80e3, tipo=Fasor.Potencia),
                  chaves=['2'],
                  tensao=Fasor(real=0.0, imag=0.0, tipo=Fasor.Tensao),
@@ -280,7 +341,7 @@ if __name__ == '__main__':
                  modelofluxo='PV',
                  qmin=30e3,
                  qmax=100e3,
-                 tensaogerador=13.700)
+                 tensaogerador=13700)
     b2 = NoDeCarga(nome='B2',
                    vizinhos=['B1', 'B3', 'E2'],
                    potencia=Fasor(real=150.0e3, imag=110.0e3, tipo=Fasor.Potencia),
@@ -291,6 +352,7 @@ if __name__ == '__main__':
                    chaves=['5'])
     c1 = Gerador(nome='C1',
                  vizinhos=['C2', 'C3', 'A2'],
+                 dvtol=20,
                  potencia=Fasor(real=90e3, imag=55e3, tipo=Fasor.Potencia),
                  chaves=['3'],
                  tensao=Fasor(real=0.0, imag=0.0, tipo=Fasor.Tensao),
@@ -299,7 +361,7 @@ if __name__ == '__main__':
                  modelofluxo='PV',
                  qmin=20e3,
                  qmax=80e3,
-                 tensaogerador=13.720)
+                 tensaogerador=13720)
     c2 = NoDeCarga(nome='C2',
                    vizinhos=['C1'],
                    potencia=Fasor(real=150.0e3, imag=110.0e3, tipo=Fasor.Potencia))
