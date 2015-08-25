@@ -71,6 +71,8 @@ class NoDeCarga(object):
     def __init__(self,
                  nome,
                  vizinhos,
+                 conexao,
+                 modelo,
                  potencia_fase_a=Fasor(real=0.0, imag=0.0, tipo=Fasor.Potencia),
                  potencia_fase_b=Fasor(real=0.0, imag=0.0, tipo=Fasor.Potencia),
                  potencia_fase_c=Fasor(real=0.0, imag=0.0, tipo=Fasor.Potencia),
@@ -85,6 +87,8 @@ class NoDeCarga(object):
 
         self.nome = nome
         self.vizinhos = vizinhos
+        self.conexao = conexao
+        self.modelo = modelo
         self.potencia_fase_a = potencia_fase_a
         self.potencia_fase_b = potencia_fase_b
         self.potencia_fase_c = potencia_fase_c
@@ -113,7 +117,8 @@ class Gerador(object):
                  vizinhos,
                  tipogerador,
                  maquina,
-                 modelofluxo,
+                 modelo,
+                 conexao,
                  qmin,
                  qmax,
                  tensaogerador,
@@ -140,7 +145,8 @@ class Gerador(object):
         self.tensao_fase_c = tensao_fase_c
         self.tipogerador = tipogerador
         self.maquina = maquina
-        self.modelofluxo = modelofluxo
+        self.modelo = modelo
+        self.conexao = conexao
         self.qmin = qmin
         self.qmax = qmax
         self.tensaogerador = tensaogerador
@@ -149,8 +155,8 @@ class Gerador(object):
                                              'ser do tipo str'
         assert isinstance(maquina, str), 'O parâmetro maquina deve' \
                                          'ser do tipo str'
-        assert isinstance(modelofluxo, str), 'O parâmetro modelofluxo deve' \
-                                             'ser do tipo str'
+        assert isinstance(modelo, str), 'O parâmetro modelo deve' \
+                                        'ser do tipo str'
         if chaves is not None:
             assert isinstance(chaves, list), 'O parâmetro chaves da classe NoDeCarga' \
                                              ' deve ser do tipo list'
@@ -610,33 +616,107 @@ class Subestacao(object):
                 # se não houverem o nó de carga analisado
                 # é o último do ramo.
                 if vizinhos_jusante == []:
-                    no.potencia_eq_fase_a.real += no.potencia_fase_a.real
-                    no.potencia_eq_fase_b.real += no.potencia_fase_b.real
-                    no.potencia_eq_fase_c.real += no.potencia_fase_c.real
+                    if no.modelo == 'PQ':
 
-                    no.potencia_eq_fase_a.imag += no.potencia_fase_a.imag
-                    no.potencia_eq_fase_b.imag += no.potencia_fase_b.imag
-                    no.potencia_eq_fase_c.imag += no.potencia_fase_c.imag
+                        no.potencia_eq_fase_a.real += no.potencia_fase_a.real
+                        no.potencia_eq_fase_b.real += no.potencia_fase_b.real
+                        no.potencia_eq_fase_c.real += no.potencia_fase_c.real
+
+                        no.potencia_eq_fase_a.imag += no.potencia_fase_a.imag
+                        no.potencia_eq_fase_b.imag += no.potencia_fase_b.imag
+                        no.potencia_eq_fase_c.imag += no.potencia_fase_c.imag
+
+                    elif no.modelo == 'I_const':
+
+                        no.potencia_eq_fase_a.real += no.potencia_fase_a.real * \
+                            no.tensao.mod / 13800
+                        no.potencia_eq_fase_b.real += no.potencia_fase_b.real * \
+                            no.tensao.mod / 13800
+                        no.potencia_eq_fase_c.real += no.potencia_fase_c.real * \
+                            no.tensao.mod / 13800
+
+                        no.potencia_eq_fase_a.imag += no.potencia_fase_a.imag * \
+                            no.tensao.mod / 13800
+                        no.potencia_eq_fase_b.imag += no.potencia_fase_b.imag * \
+                            no.tensao.mod / 13800
+                        no.potencia_eq_fase_c.imag += no.potencia_fase_c.imag * \
+                            no.tensao.mod / 13800
+
+                    elif no.modelo == 'Z_const':
+
+                        no.potencia_eq_fase_a.real += no.potencia_fase_a.real * \
+                            no.tensao.mod ** 2 / 13800
+                        no.potencia_eq_fase_b.real += no.potencia_fase_b.real * \
+                            no.tensao.mod ** 2 / 13800
+                        no.potencia_eq_fase_c.real += no.potencia_fase_c.real * \
+                            no.tensao.mod ** 2 / 13800
+
+                        no.potencia_eq_fase_a.imag += no.potencia_fase_a.imag * \
+                            no.tensao.mod ** 2 / 13800 ** 2
+                        no.potencia_eq_fase_b.imag += no.potencia_fase_b.imag * \
+                            no.tensao.mod ** 2 / 13800 ** 2
+                        no.potencia_eq_fase_c.imag += no.potencia_fase_c.imag * \
+                            no.tensao.mod ** 2 / 13800 ** 2
+
                 else:
                     # soma a potencia da carga associada ao nó atual
-                    no.potencia_eq_fase_a.real += no.potencia_fase_a.real
-                    no.potencia_eq_fase_b.real += no.potencia_fase_b.real
-                    no.potencia_eq_fase_c.real += no.potencia_fase_c.real
+                    if no.modelo == 'PQ':
+                        no.potencia_eq_fase_a.real += no.potencia_fase_a.real
+                        no.potencia_eq_fase_b.real += no.potencia_fase_b.real
+                        no.potencia_eq_fase_c.real += no.potencia_fase_c.real
 
-                    no.potencia_eq_fase_a.imag += no.potencia_fase_a.imag
-                    no.potencia_eq_fase_b.imag += no.potencia_fase_b.imag
-                    no.potencia_eq_fase_c.imag += no.potencia_fase_c.imag
+                        no.potencia_eq_fase_a.imag += no.potencia_fase_a.imag
+                        no.potencia_eq_fase_b.imag += no.potencia_fase_b.imag
+                        no.potencia_eq_fase_c.imag += no.potencia_fase_c.imag
+
+                    elif no.modelo == 'I_const':
+
+                        no.potencia_eq_fase_a.real += no.potencia_fase_a.real * \
+                            no.tensao.mod / 13800
+                        no.potencia_eq_fase_b.real += no.potencia_fase_b.real * \
+                            no.tensao.mod / 13800
+                        no.potencia_eq_fase_c.real += no.potencia_fase_c.real * \
+                            no.tensao.mod / 13800
+
+                        no.potencia_eq_fase_a.imag += no.potencia_fase_a.imag * \
+                            no.tensao.mod / 13800
+                        no.potencia_eq_fase_b.imag += no.potencia_fase_b.imag * \
+                            no.tensao.mod / 13800
+                        no.potencia_eq_fase_c.imag += no.potencia_fase_c.imag * \
+                            no.tensao.mod / 13800
+
+                    elif no.modelo == 'Z_const':
+
+                        no.potencia_eq_fase_a.real += no.potencia_fase_a.real * \
+                            no.tensao.mod ** 2 / 13800
+                        no.potencia_eq_fase_b.real += no.potencia_fase_b.real * \
+                            no.tensao.mod ** 2 / 13800
+                        no.potencia_eq_fase_c.real += no.potencia_fase_c.real * \
+                            no.tensao.mod ** 2 / 13800
+
+                        no.potencia_eq_fase_a.imag += no.potencia_fase_a.imag * \
+                            no.tensao.mod ** 2 / 13800 ** 2
+                        no.potencia_eq_fase_b.imag += no.potencia_fase_b.imag * \
+                            no.tensao.mod ** 2 / 13800 ** 2
+                        no.potencia_eq_fase_c.imag += no.potencia_fase_c.imag * \
+                            no.tensao.mod ** 2 / 13800 ** 2
 
                     # acrescenta à potência do nó atual
                     # as potências dos nós a jusante
                     for no_jus in vizinhos_jusante:
-                        no.potencia_eq_fase_a.real += no_jus.potencia_eq_fase_a.real
-                        no.potencia_eq_fase_b.real += no_jus.potencia_eq_fase_b.real
-                        no.potencia_eq_fase_c.real += no_jus.potencia_eq_fase_c.real
+                        no.potencia_eq_fase_a.real += no_jus.potencia_eq_fase_a.\
+                            real
+                        no.potencia_eq_fase_b.real += no_jus.potencia_eq_fase_b.\
+                            real
+                        no.potencia_eq_fase_c.real += no_jus.potencia_eq_fase_c.\
+                            real
 
-                        no.potencia_eq_fase_a.imag += no_jus.potencia_eq_fase_a.imag
-                        no.potencia_eq_fase_b.imag += no_jus.potencia_eq_fase_b.imag
-                        no.potencia_eq_fase_c.imag += no_jus.potencia_eq_fase_c.imag
+                        no.potencia_eq_fase_a.imag += no_jus.potencia_eq_fase_a.\
+                            imag
+                        no.potencia_eq_fase_b.imag += no_jus.potencia_eq_fase_b.\
+                            imag
+                        no.potencia_eq_fase_c.imag += no_jus.potencia_eq_fase_c.\
+                            imag
 
                         # chama a função busca_trecho para definir
                         # quais trechos estão entre o nó atual e o nó a jusante
@@ -719,13 +799,19 @@ class Subestacao(object):
                 qc = no.potencia_eq_fase_c.imag
 
                 # parcela de perdas
-                pa += r * (no.potencia_eq_fase_a.mod ** 2) / no.tensao_fase_a.mod ** 2
-                pb += r * (no.potencia_eq_fase_b.mod ** 2) / no.tensao_fase_b.mod ** 2
-                pc += r * (no.potencia_eq_fase_c.mod ** 2) / no.tensao_fase_c.mod ** 2
+                pa += r * (no.potencia_eq_fase_a.mod ** 2) / no.tensao_fase_a.\
+                    mod ** 2
+                pb += r * (no.potencia_eq_fase_b.mod ** 2) / no.tensao_fase_b.\
+                    mod ** 2
+                pc += r * (no.potencia_eq_fase_c.mod ** 2) / no.tensao_fase_c.\
+                    mod ** 2
 
-                qa += x * (no.potencia_eq_fase_a.mod ** 2) / no.tensao_fase_a.mod ** 2
-                qb += x * (no.potencia_eq_fase_b.mod ** 2) / no.tensao_fase_b.mod ** 2
-                qc += x * (no.potencia_eq_fase_c.mod ** 2) / no.tensao_fase_c.mod ** 2
+                qa += x * (no.potencia_eq_fase_a.mod ** 2) / no.tensao_fase_a.\
+                    mod ** 2
+                qb += x * (no.potencia_eq_fase_b.mod ** 2) / no.tensao_fase_b.\
+                    mod ** 2
+                qc += x * (no.potencia_eq_fase_c.mod ** 2) / no.tensao_fase_c.\
+                    mod ** 2
 
                 v_jus_fase_a = v_mon_fase_a ** 2 - 2 * (r * pa + x * qa) + \
                     (r ** 2 + x ** 2) * (pa ** 2 + qa ** 2) / v_mon_fase_a ** 2
@@ -746,9 +832,12 @@ class Subestacao(object):
                 k2b = v_mon_fase_b - (pb * r - qb * x) / v_mon_fase_b
                 k2c = v_mon_fase_c - (pc * r - qc * x) / v_mon_fase_c
 
-                ang_a = no_mon.tensao_fase_a.ang * np.pi / 180.0 - np.arctan(k1a / k2a)
-                ang_b = no_mon.tensao_fase_b.ang * np.pi / 180.0 - np.arctan(k1b / k2b)
-                ang_c = no_mon.tensao_fase_c.ang * np.pi / 180.0 - np.arctan(k1c / k2c)
+                ang_a = no_mon.tensao_fase_a.ang * np.pi / 180.0 - np.arctan \
+                    (k1a / k2a)
+                ang_b = no_mon.tensao_fase_b.ang * np.pi / 180.0 - np.arctan \
+                    (k1b / k2b)
+                ang_c = no_mon.tensao_fase_c.ang * np.pi / 180.0 - np.arctan \
+                    (k1c / k2c)
 
                 no.tensao_fase_a.mod = v_jus_fase_a
                 no.tensao_fase_b.mod = v_jus_fase_b
@@ -844,7 +933,7 @@ class Subestacao(object):
             # identifica os geradores do sistema
             if isinstance(nos, Gerador):
                 # trata apenas geradores modelados como PV
-                if nos.modelofluxo == 'PV':
+                if nos.modelo == 'PV':
                     # calcula a diferença entre a tensão calculada com o fluxo
                     # de carga e a tensao do gerador
                     deltav_fase_a = np.array([[nos.tensaogerador - float(nos.tensao_fase_a.mod)]])
@@ -1395,7 +1484,6 @@ class Subestacao(object):
                             break
 
 
-
 class Trecho(Aresta):
     def __init__(self,
                  nome,
@@ -1847,12 +1935,17 @@ class Transformador(object):
 
 
 class Condutor(object):
-    def __init__(self, nome, rp, xp, rz, xz, ampacidade):
+    def __init__(self, tamanho, nome, rp, xp, rz, xz, d_ext, raio_m_g, d_iso, d_tela, ampacidade):
+        self.tamanho = tamanho
         self.nome = nome
         self.rp = float(rp)
         self.xp = float(xp)
         self.rz = float(rz)
         self.xz = float(xz)
+        self.d_ext = float(d_ext)  # diâmetro externo
+        self.raio_m_g = float(raio_m_g)  # raio médio geométrico
+        self.d_iso = float(d_iso)
+        self.d_tela = float(d_tela)
         self.ampacidade = float(ampacidade)
 
 
@@ -1910,23 +2003,31 @@ if __name__ == '__main__':
     # Nos de carga do alimentador S1_AL1
     s1 = NoDeCarga(nome='S1',
                    vizinhos=['A2'],
+                   conexao='estrela',
+                   modelo='PQ',
                    potencia_fase_a=Fasor(real=0.0, imag=0.0, tipo=Fasor.Potencia),
                    potencia_fase_b=Fasor(real=0.0, imag=0.0, tipo=Fasor.Potencia),
                    potencia_fase_c=Fasor(real=0.0, imag=0.0, tipo=Fasor.Potencia),
                    chaves=['1'])
     a1 = NoDeCarga(nome='A1',
                    vizinhos=['A2'],
+                   conexao='estrela',
+                   modelo='PQ',
                    potencia_fase_a=Fasor(real=460.0e3, imag=250.0e3, tipo=Fasor.Potencia),
                    potencia_fase_b=Fasor(real=460.0e3, imag=250.0e3, tipo=Fasor.Potencia),
                    potencia_fase_c=Fasor(real=460.0e3, imag=250.0e3, tipo=Fasor.Potencia),)
     a2 = NoDeCarga(nome='A2',
                    vizinhos=['S1', 'A1', 'A3', 'C1'],
+                   conexao='estrela',
+                   modelo='PQ',
                    potencia_fase_a=Fasor(real=350.0e3, imag=220.0e3, tipo=Fasor.Potencia),
                    potencia_fase_b=Fasor(real=350.0e3, imag=220.0e3, tipo=Fasor.Potencia),
                    potencia_fase_c=Fasor(real=350.0e3, imag=220.0e3, tipo=Fasor.Potencia),
                    chaves=['1', '3'])
     a3 = NoDeCarga(nome='A3',
                    vizinhos=['A2', 'B1'],
+                   conexao='estrela',
+                   modelo='PQ',
                    potencia_fase_a=Fasor(real=500.0e3, imag=280.0e3, tipo=Fasor.Potencia),
                    potencia_fase_b=Fasor(real=500.0e3, imag=280.0e3, tipo=Fasor.Potencia),
                    potencia_fase_c=Fasor(real=500.0e3, imag=280.0e3, tipo=Fasor.Potencia),
@@ -1940,18 +2041,23 @@ if __name__ == '__main__':
                  chaves=['2'],
                  tipogerador='AEROGERADOR',
                  maquina='DFIG',
-                 modelofluxo='PV',
+                 modelo='PV',
+                 conexao='estrela',
                  qmin=30e3,
                  qmax=650e3,
                  tensaogerador=13800)
     b2 = NoDeCarga(nome='B2',
                    vizinhos=['B1', 'B3', 'E2'],
+                   conexao='estrela',
+                   modelo='PQ',
                    potencia_fase_a=Fasor(real=450.0e3, imag=230.0e3, tipo=Fasor.Potencia),
                    potencia_fase_b=Fasor(real=450.0e3, imag=230.0e3, tipo=Fasor.Potencia),
                    potencia_fase_c=Fasor(real=450.0e3, imag=230.0e3, tipo=Fasor.Potencia),
                    chaves=['4'])
     b3 = NoDeCarga(nome='B3',
                    vizinhos=['B2', 'C3'],
+                   conexao='estrela',
+                   modelo='PQ',
                    potencia_fase_a=Fasor(real=100.0e3, imag=80.0e3, tipo=Fasor.Potencia),
                    potencia_fase_b=Fasor(real=100.0e3, imag=80.0e3, tipo=Fasor.Potencia),
                    potencia_fase_c=Fasor(real=100.0e3, imag=80.0e3, tipo=Fasor.Potencia),
@@ -1965,17 +2071,22 @@ if __name__ == '__main__':
                  chaves=['3'],
                  tipogerador='FOTOVOLTAICO',
                  maquina='',
-                 modelofluxo='PV',
+                 modelo='PV',
+                 conexao='estrela',
                  qmin=20e3,
                  qmax=650e3,
                  tensaogerador=13800)
     c2 = NoDeCarga(nome='C2',
                    vizinhos=['C1'],
+                   conexao='estrela',
+                   modelo='PQ',
                    potencia_fase_a=Fasor(real=650.0e3, imag=330.0e3, tipo=Fasor.Potencia),
                    potencia_fase_b=Fasor(real=650.0e3, imag=330.0e3, tipo=Fasor.Potencia),
                    potencia_fase_c=Fasor(real=650.0e3, imag=330.0e3, tipo=Fasor.Potencia),)
     c3 = NoDeCarga(nome='C3',
                    vizinhos=['C1', 'E3', 'B3'],
+                   conexao='estrela',
+                   modelo='PQ',
                    potencia_fase_a=Fasor(real=300.0e3, imag=180.0e3, tipo=Fasor.Potencia),
                    potencia_fase_b=Fasor(real=300.0e3, imag=180.0e3, tipo=Fasor.Potencia),
                    potencia_fase_c=Fasor(real=300.0e3, imag=180.0e3, tipo=Fasor.Potencia),
@@ -1984,46 +2095,69 @@ if __name__ == '__main__':
     # Nos de carga do alimentador S2_AL1
     s2 = NoDeCarga(nome='S2',
                    vizinhos=['D1'],
+                   conexao='estrela',
+                   modelo='PQ',
                    potencia_fase_a=Fasor(real=0.0, imag=0.0, tipo=Fasor.Potencia),
                    potencia_fase_b=Fasor(real=0.0, imag=0.0, tipo=Fasor.Potencia),
                    potencia_fase_c=Fasor(real=0.0, imag=0.0, tipo=Fasor.Potencia),
                    chaves=['6'])
     d1 = NoDeCarga(nome='D1',
                    vizinhos=['S2', 'D2', 'D3', 'E1'],
+                   conexao='estrela',
+                   modelo='PQ',
                    potencia_fase_a=Fasor(real=200.0e3, imag=160.0e3, tipo=Fasor.Potencia),
                    potencia_fase_b=Fasor(real=200.0e3, imag=160.0e3, tipo=Fasor.Potencia),
                    potencia_fase_c=Fasor(real=200.0e3, imag=160.0e3, tipo=Fasor.Potencia),
                    chaves=['6', '7'])
     d2 = NoDeCarga(nome='D2',
                    vizinhos=['D1'],
+                   conexao='estrela',
+                   modelo='PQ',
                    potencia_fase_a=Fasor(real=90.0e3, imag=40.0e3, tipo=Fasor.Potencia),
                    potencia_fase_b=Fasor(real=90.0e3, imag=40.0e3, tipo=Fasor.Potencia),
                    potencia_fase_c=Fasor(real=90.0e3, imag=40.0e3, tipo=Fasor.Potencia),)
     d3 = NoDeCarga(nome='D3',
-                   vizinhos=['D1'],
+                   vizinhos=['D1'],conexao='estrela',
+                   modelo='PQ',
                    potencia_fase_a=Fasor(real=100.0e3, imag=80.0e3, tipo=Fasor.Potencia),
                    potencia_fase_b=Fasor(real=100.0e3, imag=80.0e3, tipo=Fasor.Potencia),
                    potencia_fase_c=Fasor(real=100.0e3, imag=80.0e3, tipo=Fasor.Potencia),)
     e1 = NoDeCarga(nome='E1',
                    vizinhos=['E3', 'E2', 'D1'],
+                   conexao='estrela',
+                   modelo='PQ',
                    potencia_fase_a=Fasor(real=100.0e3, imag=40.0e3, tipo=Fasor.Potencia),
                    potencia_fase_b=Fasor(real=100.0e3, imag=40.0e3, tipo=Fasor.Potencia),
                    potencia_fase_c=Fasor(real=100.0e3, imag=40.0e3, tipo=Fasor.Potencia),
                    chaves=['7'])
     e2 = NoDeCarga(nome='E2',
                    vizinhos=['E1', 'B2'],
+                   conexao='estrela',
+                   modelo='PQ',
                    potencia_fase_a=Fasor(real=110.0e3, imag=70.0e3, tipo=Fasor.Potencia),
                    potencia_fase_b=Fasor(real=110.0e3, imag=70.0e3, tipo=Fasor.Potencia),
                    potencia_fase_c=Fasor(real=110.0e3, imag=70.0e3, tipo=Fasor.Potencia),
                    chaves=['4'])
     e3 = NoDeCarga(nome='E3',
                    vizinhos=['E1', 'C3'],
+                   conexao='estrela',
+                   modelo='PQ',
                    potencia_fase_a=Fasor(real=150.0e3, imag=80.0e3, tipo=Fasor.Potencia),
                    potencia_fase_b=Fasor(real=150.0e3, imag=80.0e3, tipo=Fasor.Potencia),
                    potencia_fase_c=Fasor(real=150.0e3, imag=80.0e3, tipo=Fasor.Potencia),
                    chaves=['8'])
 
-    cond_1 = Condutor(nome='CAA 266R', rp=0.2391, xp=0.37895, rz=0.41693, xz=1.55591, ampacidade=301)
+    cond_1 = Condutor(nome='CAA 266R',
+                      tamanho='',
+                      d_ext=0,
+                      raio_m_g=0,
+                      d_iso=0,
+                      d_tela=0,
+                      rp=0.2391,
+                      xp=0.37895,
+                      rz=0.41693,
+                      xz=1.55591,
+                      ampacidade=301)
 
     # Trechos do alimentador S1_AL1
     s1_ch1 = Trecho(nome='S1CH1', n1=s1, n2=ch1, condutor=cond_1, comprimento=0.01)
