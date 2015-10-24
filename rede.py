@@ -195,7 +195,8 @@ class Subestacao(object):
 
         for alimentador in alimentadores:  # varre os alimentadores para criar as tensões de base e calcula as impedâncias equivalentes
             for trecho in alimentador.trechos.values():
-                trecho.base = self.base_sub  # DÚVIDA AQUI
+                trecho.base = self.base_sub  # cria atributo base para o trecho
+                # deixa em p.u
                 trecho.impedancia_equivalente_positiva = trecho.impedancia_positiva/trecho.base.impedancia
                 trecho.impedancia_equivalente_zero = trecho.impedancia_zero / trecho.base.impedancia
 
@@ -254,7 +255,7 @@ class Subestacao(object):
             for alimentador_atual, r in self.alimentadores.iteritems():
                 for i in self.alimentadores[alimentador_atual].trechos.values():
                     curto = i.calcula_curto_monofasico_minimo()
-                    self.curto_monofasico_minimo.append([i.nome,str(curto.pu),str(curto.mod)])
+                    self.curto_monofasico_minimo.append([i.nome, str(curto.pu), str(curto.mod)])
             table = AsciiTable(self.curto_monofasico_minimo)
             print table.table
 
@@ -273,7 +274,7 @@ class Subestacao(object):
 
         # procura o nó inicial(raiz) do alimentador
         for alimentador_atual, r in self.alimentadores.iteritems():
-            for i in self.alimentadores[alimentador_atual].trechos.values(): # por que nao i in self.r.trechos.values():??
+            for i in self.alimentadores[alimentador_atual].trechos.values():
                 for j in self.alimentadores[alimentador_atual].setores[r.arvore_nos_de_carga.raiz].nos_de_carga.keys(): #DUVIDA AQUI
                     # nó a partir do qual será procurado trechos conectados a ele
                     prox_no = self.alimentadores[alimentador_atual].setores[r.arvore_nos_de_carga.raiz].nos_de_carga[j]
@@ -284,7 +285,7 @@ class Subestacao(object):
             break
             # ALIMENTADOR ATUAL?
         self._calculaimpedanciaeq(trechoatual, prox_no, alimentador_atual, trechosvisitados)
-#SE TRECHOS VISITADOS AINDA É VAZIO COMO FUNCIONARÁ O IF?
+
 
     def _calculaimpedanciaeq(self, trecho_anterior, no_atual, alimentador_atual, trechosvisitados):
 
@@ -302,6 +303,7 @@ class Subestacao(object):
                     pass
 
                 # calcula impedância equivalente do trecho
+                # soma com a impedância equivalente acumulada
                 i.impedancia_equivalente_positiva = i.impedancia_equivalente_positiva + trecho_anterior.impedancia_equivalente_positiva
                 i.impedancia_equivalente_zero = i.impedancia_equivalente_zero + trecho_anterior.impedancia_equivalente_zero
                 trechosvisitados.append(i)
@@ -629,34 +631,34 @@ class Subestacao(object):
                     elif no.modelo == 'I_const':
 
                         no.potencia_eq_fase_a.real += no.potencia_fase_a.real * \
-                            no.tensao.mod / 13800
+                            no.tensao_fase_a.mod / 13800
                         no.potencia_eq_fase_b.real += no.potencia_fase_b.real * \
-                            no.tensao.mod / 13800
+                            no.tensao_fase_b.mod / 13800
                         no.potencia_eq_fase_c.real += no.potencia_fase_c.real * \
-                            no.tensao.mod / 13800
+                            no.tensao_fase_c.mod / 13800
 
                         no.potencia_eq_fase_a.imag += no.potencia_fase_a.imag * \
-                            no.tensao.mod / 13800
+                            no.tensao_fase_a.mod / 13800
                         no.potencia_eq_fase_b.imag += no.potencia_fase_b.imag * \
-                            no.tensao.mod / 13800
+                            no.tensao_fase_b.mod / 13800
                         no.potencia_eq_fase_c.imag += no.potencia_fase_c.imag * \
-                            no.tensao.mod / 13800
+                            no.tensao_fase_c.mod / 13800
 
                     elif no.modelo == 'Z_const':
 
                         no.potencia_eq_fase_a.real += no.potencia_fase_a.real * \
-                            no.tensao.mod ** 2 / 13800
+                            no.tensao_fase_a.mod ** 2 / 13800
                         no.potencia_eq_fase_b.real += no.potencia_fase_b.real * \
-                            no.tensao.mod ** 2 / 13800
+                            no.tensao_fase_b.mod ** 2 / 13800
                         no.potencia_eq_fase_c.real += no.potencia_fase_c.real * \
-                            no.tensao.mod ** 2 / 13800
+                            no.tensao_fase_c.mod ** 2 / 13800
 
                         no.potencia_eq_fase_a.imag += no.potencia_fase_a.imag * \
-                            no.tensao.mod ** 2 / 13800 ** 2
+                            no.tensao_fase_a.mod ** 2 / 13800 ** 2
                         no.potencia_eq_fase_b.imag += no.potencia_fase_b.imag * \
-                            no.tensao.mod ** 2 / 13800 ** 2
+                            no.tensao_fase_b.mod ** 2 / 13800 ** 2
                         no.potencia_eq_fase_c.imag += no.potencia_fase_c.imag * \
-                            no.tensao.mod ** 2 / 13800 ** 2
+                            no.tensao_fase_c.mod ** 2 / 13800 ** 2
 
                 else:
                     # soma a potencia da carga associada ao nó atual
@@ -672,34 +674,34 @@ class Subestacao(object):
                     elif no.modelo == 'I_const':
 
                         no.potencia_eq_fase_a.real += no.potencia_fase_a.real * \
-                            no.tensao.mod / 13800
+                            no.tensao_fase_a.mod / 13800
                         no.potencia_eq_fase_b.real += no.potencia_fase_b.real * \
-                            no.tensao.mod / 13800
+                            no.tensao_fase_b.mod / 13800
                         no.potencia_eq_fase_c.real += no.potencia_fase_c.real * \
-                            no.tensao.mod / 13800
+                            no.tensao_fase_c.mod / 13800
 
                         no.potencia_eq_fase_a.imag += no.potencia_fase_a.imag * \
-                            no.tensao.mod / 13800
+                            no.tensao_fase_a.mod / 13800
                         no.potencia_eq_fase_b.imag += no.potencia_fase_b.imag * \
-                            no.tensao.mod / 13800
+                            no.tensao_fase_b.mod / 13800
                         no.potencia_eq_fase_c.imag += no.potencia_fase_c.imag * \
-                            no.tensao.mod / 13800
+                            no.tensao_fase_c.mod / 13800
 
                     elif no.modelo == 'Z_const':
 
                         no.potencia_eq_fase_a.real += no.potencia_fase_a.real * \
-                            no.tensao.mod ** 2 / 13800
+                            no.tensao_fase_a.mod ** 2 / 13800
                         no.potencia_eq_fase_b.real += no.potencia_fase_b.real * \
-                            no.tensao.mod ** 2 / 13800
+                            no.tensao_fase_b.mod ** 2 / 13800
                         no.potencia_eq_fase_c.real += no.potencia_fase_c.real * \
-                            no.tensao.mod ** 2 / 13800
+                            no.tensao_fase_c.mod ** 2 / 13800
 
                         no.potencia_eq_fase_a.imag += no.potencia_fase_a.imag * \
-                            no.tensao.mod ** 2 / 13800 ** 2
+                            no.tensao_fase_a.mod ** 2 / 13800 ** 2
                         no.potencia_eq_fase_b.imag += no.potencia_fase_b.imag * \
-                            no.tensao.mod ** 2 / 13800 ** 2
+                            no.tensao_fase_b.mod ** 2 / 13800 ** 2
                         no.potencia_eq_fase_c.imag += no.potencia_fase_c.imag * \
-                            no.tensao.mod ** 2 / 13800 ** 2
+                            no.tensao_fase_c.mod ** 2 / 13800 ** 2
 
                     # acrescenta à potência do nó atual
                     # as potências dos nós a jusante
@@ -1392,7 +1394,7 @@ class Subestacao(object):
         return self.xii(alimentador, no_max)
 
     def calcular_fluxo_pq(self, alimentador):
-        max_iteracaoes = 50
+        max_iteracaoes = 500
         criterio_converg = 0.001
         converg = 1e6
         iter = 0
@@ -1489,6 +1491,8 @@ class Trecho(Aresta):
                  nome,
                  n1,
                  n2,
+                 local,
+                 config_tr,
                  fluxo_fase_a=None,
                  fluxo_fase_b=None,
                  fluxo_fase_c=None,
@@ -1508,6 +1512,8 @@ class Trecho(Aresta):
         self.n2 = n2
         self.no_montante = None
         self.no_jusante = None
+        self.config_tr = config_tr
+        self.local = local
         self.condutor = condutor
         self.comprimento = comprimento
         self.impedancia_positiva = (self.condutor.rp + self.condutor.xp * 1j) * self.comprimento
@@ -1528,6 +1534,47 @@ class Trecho(Aresta):
             self.fluxo_fase_c = Fasor(real=0.0, imag=0.0, tipo=Fasor.Corrente)
         else:
             self.fluxo_fase_c = fluxo_fase_c
+
+        if local == 'aereo':
+            if config_tr == 'ID-500':
+                self.d_12 = 2.5
+                self.d_23 = 4.5
+                self.d_13 = 7
+                self.d_fn = 4
+                self.d_np = 0.5
+                self.d_ns = 24
+                self.d_fs = 28
+
+            elif config_tr == 'ID-505':
+                self.d_12 = 7
+                self.d_fn = 4
+                self.d_np = 0.5
+                self.d_ns = 24
+                self.d_fs = 28
+
+            elif config_tr == 'ID-510':
+                self.d_fn = 5
+                self.d_np = 0.5
+                self.d_ns = 24
+                self.d_fs = 29
+
+        elif local == 'subterraneo':
+            if config_tr == 'ID-515':
+                self.d_12 = 0.1524
+                self.d_23 = 0.1524
+                self.d_13 = 0.3048
+
+            if config_tr == 'ID-520':
+                self.d_12 = 0.0254
+
+    def carson(self):
+        if self.condutor.xp != 0:
+            if self.config_tr == 'ID-505':
+                return 'id-505'
+            elif self.config_tr == 'ID-510':
+                return 'id-510'
+            elif self.config_tr == 'ID-515':
+                return 'id-515'
 
     def calcula_impedancia(self):
         return (self.comprimento * self.condutor.rp,
@@ -2032,20 +2079,28 @@ if __name__ == '__main__':
                    potencia_fase_b=Fasor(real=500.0e3, imag=280.0e3, tipo=Fasor.Potencia),
                    potencia_fase_c=Fasor(real=500.0e3, imag=280.0e3, tipo=Fasor.Potencia),
                    chaves=['2'])
-    b1 = Gerador(nome='B1',
-                 vizinhos=['B2', 'A3'],
-                 dvtol=1,
-                 potencia_fase_a=Fasor(real=110e3, imag=80e3, tipo=Fasor.Potencia),
-                 potencia_fase_b=Fasor(real=110e3, imag=80e3, tipo=Fasor.Potencia),
-                 potencia_fase_c=Fasor(real=110e3, imag=80e3, tipo=Fasor.Potencia),
-                 chaves=['2'],
-                 tipogerador='AEROGERADOR',
-                 maquina='DFIG',
-                 modelo='PV',
-                 conexao='estrela',
-                 qmin=30e3,
-                 qmax=650e3,
-                 tensaogerador=13800)
+    # b1 = Gerador(nome='B1',
+    #              vizinhos=['B2', 'A3'],
+    #              dvtol=1,
+    #              potencia_fase_a=Fasor(real=110e3, imag=80e3, tipo=Fasor.Potencia),
+    #              potencia_fase_b=Fasor(real=110e3, imag=80e3, tipo=Fasor.Potencia),
+    #              potencia_fase_c=Fasor(real=110e3, imag=80e3, tipo=Fasor.Potencia),
+    #              chaves=['2'],
+    #              tipogerador='AEROGERADOR',
+    #              maquina='DFIG',
+    #              modelo='PV',
+    #              conexao='estrela',
+    #              qmin=-70e3,
+    #              qmax=70e3,
+    #              tensaogerador=13800)
+    b1 = NoDeCarga(nome='B1',
+                   vizinhos=['B2', 'A3'],
+                   conexao='estrela',
+                   modelo='PQ',
+                   potencia_fase_a=Fasor(real=110e3, imag=80e3, tipo=Fasor.Potencia),
+                   potencia_fase_b=Fasor(real=110e3, imag=80e3, tipo=Fasor.Potencia),
+                   potencia_fase_c=Fasor(real=110e3, imag=80e3, tipo=Fasor.Potencia),
+                   chaves=['2'])
     b2 = NoDeCarga(nome='B2',
                    vizinhos=['B1', 'B3', 'E2'],
                    conexao='estrela',
@@ -2062,20 +2117,29 @@ if __name__ == '__main__':
                    potencia_fase_b=Fasor(real=100.0e3, imag=80.0e3, tipo=Fasor.Potencia),
                    potencia_fase_c=Fasor(real=100.0e3, imag=80.0e3, tipo=Fasor.Potencia),
                    chaves=['5'])
-    c1 = Gerador(nome='C1',
-                 vizinhos=['C2', 'C3', 'A2'],
-                 dvtol=1,
-                 potencia_fase_a=Fasor(real=90e3, imag=55e3, tipo=Fasor.Potencia),
-                 potencia_fase_b=Fasor(real=90e3, imag=55e3, tipo=Fasor.Potencia),
-                 potencia_fase_c=Fasor(real=90e3, imag=55e3, tipo=Fasor.Potencia),
-                 chaves=['3'],
-                 tipogerador='FOTOVOLTAICO',
-                 maquina='',
-                 modelo='PV',
-                 conexao='estrela',
-                 qmin=20e3,
-                 qmax=650e3,
-                 tensaogerador=13800)
+    # c1 = Gerador(nome='C1',
+    #              vizinhos=['C2', 'C3', 'A2'],
+    #              dvtol=1,
+    #              potencia_fase_a=Fasor(real=90e3, imag=55e3, tipo=Fasor.Potencia),
+    #              potencia_fase_b=Fasor(real=90e3, imag=55e3, tipo=Fasor.Potencia),
+    #              potencia_fase_c=Fasor(real=90e3, imag=55e3, tipo=Fasor.Potencia),
+    #              chaves=['3'],
+    #              tipogerador='FOTOVOLTAICO',
+    #              maquina='',
+    #              modelo='PV',
+    #              conexao='estrela',
+    #              qmin=-45e3,
+    #              qmax=45e3,
+    #              tensaogerador=13800)
+    c1 = NoDeCarga(nome='C1',
+                   vizinhos=['C2', 'C3', 'A2'],
+                   conexao='estrela',
+                   modelo='PQ',
+                   potencia_fase_a=Fasor(real=90e3, imag=55e3, tipo=Fasor.Potencia),
+                   potencia_fase_b=Fasor(real=90e3, imag=55e3, tipo=Fasor.Potencia),
+                   potencia_fase_c=Fasor(real=90e3, imag=55e3, tipo=Fasor.Potencia),
+                   chaves=['3'])
+
     c2 = NoDeCarga(nome='C2',
                    vizinhos=['C1'],
                    conexao='estrela',
@@ -2160,39 +2224,39 @@ if __name__ == '__main__':
                       ampacidade=301)
 
     # Trechos do alimentador S1_AL1
-    s1_ch1 = Trecho(nome='S1CH1', n1=s1, n2=ch1, condutor=cond_1, comprimento=0.01)
+    s1_ch1 = Trecho(nome='S1CH1', n1=s1, n2=ch1, condutor=cond_1, comprimento=0.01, local='aereo', config_tr='ID-505')
 
-    ch1_a2 = Trecho(nome='CH1A2', n1=ch1, n2=a2, condutor=cond_1, comprimento=1.0)
-    a2_a1 = Trecho(nome='A2A1', n1=a2, n2=a1, condutor=cond_1, comprimento=1.0)
-    a2_a3 = Trecho(nome='A2A3', n1=a2, n2=a3, condutor=cond_1, comprimento=1.0)
-    a2_ch3 = Trecho(nome='A2CH3', n1=a2, n2=ch3, condutor=cond_1, comprimento=0.5)
-    a3_ch2 = Trecho(nome='A3CH2', n1=a3, n2=ch2, condutor=cond_1, comprimento=0.5)
+    ch1_a2 = Trecho(nome='CH1A2', n1=ch1, n2=a2, condutor=cond_1, comprimento=1.0, local='aereo', config_tr='ID-505')
+    a2_a1 = Trecho(nome='A2A1', n1=a2, n2=a1, condutor=cond_1, comprimento=1.0, local='aereo', config_tr='ID-505')
+    a2_a3 = Trecho(nome='A2A3', n1=a2, n2=a3, condutor=cond_1, comprimento=1.0, local='aereo', config_tr='ID-505')
+    a2_ch3 = Trecho(nome='A2CH3', n1=a2, n2=ch3, condutor=cond_1, comprimento=0.5, local='aereo', config_tr='ID-505')
+    a3_ch2 = Trecho(nome='A3CH2', n1=a3, n2=ch2, condutor=cond_1, comprimento=0.5, local='aereo', config_tr='ID-505')
 
-    ch3_c1 = Trecho(nome='CH3C1', n1=ch3, n2=c1, condutor=cond_1, comprimento=0.5)
-    c1_c2 = Trecho(nome='C1C2', n1=c1, n2=c2, condutor=cond_1, comprimento=1.0)
-    c1_c3 = Trecho(nome='C1C3', n1=c1, n2=c3, condutor=cond_1, comprimento=1.0)
-    c3_ch8 = Trecho(nome='C3CH8', n1=c3, n2=ch8, condutor=cond_1, comprimento=0.5)
-    c3_ch5 = Trecho(nome='C3CH5', n1=c3, n2=ch5, condutor=cond_1, comprimento=0.5)
+    ch3_c1 = Trecho(nome='CH3C1', n1=ch3, n2=c1, condutor=cond_1, comprimento=0.5, local='aereo', config_tr='ID-505')
+    c1_c2 = Trecho(nome='C1C2', n1=c1, n2=c2, condutor=cond_1, comprimento=1.0, local='aereo', config_tr='ID-505')
+    c1_c3 = Trecho(nome='C1C3', n1=c1, n2=c3, condutor=cond_1, comprimento=1.0, local='aereo', config_tr='ID-505')
+    c3_ch8 = Trecho(nome='C3CH8', n1=c3, n2=ch8, condutor=cond_1, comprimento=0.5, local='aereo', config_tr='ID-505')
+    c3_ch5 = Trecho(nome='C3CH5', n1=c3, n2=ch5, condutor=cond_1, comprimento=0.5, local='aereo', config_tr='ID-505')
 
-    ch2_b1 = Trecho(nome='CH2B1', n1=ch2, n2=b1, condutor=cond_1, comprimento=0.5)
-    b1_b2 = Trecho(nome='B1B2', n1=b1, n2=b2, condutor=cond_1, comprimento=1.0)
-    b2_ch4 = Trecho(nome='B2CH4', n1=b2, n2=ch4, condutor=cond_1, comprimento=0.5)
-    b2_b3 = Trecho(nome='B2B3', n1=b2, n2=b3, condutor=cond_1, comprimento=1.0)
-    b3_ch5 = Trecho(nome='B3CH5', n1=b3, n2=ch5, condutor=cond_1, comprimento=0.5)
+    ch2_b1 = Trecho(nome='CH2B1', n1=ch2, n2=b1, condutor=cond_1, comprimento=0.5, local='aereo', config_tr='ID-505')
+    b1_b2 = Trecho(nome='B1B2', n1=b1, n2=b2, condutor=cond_1, comprimento=1.0, local='aereo', config_tr='ID-505')
+    b2_ch4 = Trecho(nome='B2CH4', n1=b2, n2=ch4, condutor=cond_1, comprimento=0.5, local='aereo', config_tr='ID-505')
+    b2_b3 = Trecho(nome='B2B3', n1=b2, n2=b3, condutor=cond_1, comprimento=1.0, local='aereo', config_tr='ID-505')
+    b3_ch5 = Trecho(nome='B3CH5', n1=b3, n2=ch5, condutor=cond_1, comprimento=0.5, local='aereo', config_tr='ID-505')
 
     # Trechos do alimentador S2_AL1
-    s2_ch6 = Trecho(nome='S2CH6', n1=s2, n2=ch6, condutor=cond_1, comprimento=0.01)
+    s2_ch6 = Trecho(nome='S2CH6', n1=s2, n2=ch6, condutor=cond_1, comprimento=0.01, local='aereo', config_tr='ID-505')
 
-    ch6_d1 = Trecho(nome='CH6D1', n1=ch6, n2=d1, condutor=cond_1, comprimento=1.0)
-    d1_d2 = Trecho(nome='D1D2', n1=d1, n2=d2, condutor=cond_1, comprimento=1.0)
-    d1_d3 = Trecho(nome='D1D3', n1=d1, n2=d3, condutor=cond_1, comprimento=1.0)
-    d1_ch7 = Trecho(nome='D1CH7', n1=d1, n2=ch7, condutor=cond_1, comprimento=0.5)
+    ch6_d1 = Trecho(nome='CH6D1', n1=ch6, n2=d1, condutor=cond_1, comprimento=1.0, local='aereo', config_tr='ID-505')
+    d1_d2 = Trecho(nome='D1D2', n1=d1, n2=d2, condutor=cond_1, comprimento=1.0, local='aereo', config_tr='ID-505')
+    d1_d3 = Trecho(nome='D1D3', n1=d1, n2=d3, condutor=cond_1, comprimento=1.0, local='aereo', config_tr='ID-505')
+    d1_ch7 = Trecho(nome='D1CH7', n1=d1, n2=ch7, condutor=cond_1, comprimento=0.5, local='aereo', config_tr='ID-505')
 
-    ch7_e1 = Trecho(nome='CH7E1', n1=ch7, n2=e1, condutor=cond_1, comprimento=0.5)
-    e1_e2 = Trecho(nome='E1E2', n1=e1, n2=e2, condutor=cond_1, comprimento=1.0)
-    e2_ch4 = Trecho(nome='E2CH4', n1=e2, n2=ch4, condutor=cond_1, comprimento=0.5)
-    e1_e3 = Trecho(nome='E1E3', n1=e1, n2=e3, condutor=cond_1, comprimento=1.0)
-    e3_ch8 = Trecho(nome='E3CH8', n1=e3, n2=ch8, condutor=cond_1, comprimento=0.5)
+    ch7_e1 = Trecho(nome='CH7E1', n1=ch7, n2=e1, condutor=cond_1, comprimento=0.5, local='aereo', config_tr='ID-505')
+    e1_e2 = Trecho(nome='E1E2', n1=e1, n2=e2, condutor=cond_1, comprimento=1.0, local='aereo', config_tr='ID-505')
+    e2_ch4 = Trecho(nome='E2CH4', n1=e2, n2=ch4, condutor=cond_1, comprimento=0.5, local='aereo', config_tr='ID-505')
+    e1_e3 = Trecho(nome='E1E3', n1=e1, n2=e3, condutor=cond_1, comprimento=1.0, local='aereo', config_tr='ID-505')
+    e3_ch8 = Trecho(nome='E3CH8', n1=e3, n2=ch8, condutor=cond_1, comprimento=0.5, local='aereo', config_tr='ID-505')
 
     # Setor S1
     st1 = Setor(nome='S1',
